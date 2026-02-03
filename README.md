@@ -1,0 +1,2 @@
+# scrubbot
+Discord bot
