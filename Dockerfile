@@ -2,7 +2,7 @@
 # We need a full Node image here because better-sqlite3 contains C++ code
 # that must be compiled during npm install. That compilation requires
 # Python, make, and g++ — tools we don't want in the final image.
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 RUN apk add --no-cache python3 make g++
 
@@ -24,7 +24,7 @@ RUN npm run build
 # ---- Stage 2: Production image ----
 # Start fresh from a lean Alpine image. No build tools, no TypeScript
 # compiler, no source files — just what's needed to run the bot.
-FROM node:22-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
