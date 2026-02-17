@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Compiled output
+dist/
+
+# Local environment variables
+.env
+.env.*
+!.env.example
+
+# Git internals
+.git/
+.gitignore
+
+# Data directory
+data/
+
+# Editor and OS clutter
+.vscode/
+.idea/
+*.DS_Store

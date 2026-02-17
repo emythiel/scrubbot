@@ -1,0 +1,25 @@
+services:
+  scrubbot:
+    build: .
+    container_name: scrubbot
+    restart: unless-stopped
+
+    volumes:
+      - ${DATA_PATH}:/app/data
+
+    environment:
+      # Required
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - CLIENT_ID=${CLIENT_ID}
+      - GUILD_ID=${GUILD_ID}
+
+      # Optional, but needed for full functionality
+      - CHANNEL_ID_ANNOUNCEMENT=${CHANNEL_ID_ANNOUNCEMENT:-}
+      - CHANNEL_ID_GENERAL=${CHANNEL_ID_GENERAL:-}
+      - ROLE_ID_ADMIN=${ROLE_ID_ADMIN:-}
+      - ROLE_ID_MENTOR=${ROLE_ID_MENTOR:-}
+      - ROLE_ID_MEMBER=${ROLE_ID_MEMBER:-}
+      - ROLE_ID_GUEST=${ROLE_ID_GUEST:-}
+      - ROLE_ID_GIVEAWAY=${ROLE_ID_GIVEAWAY:-}
+      - GW2_API_KEY=${GW2_API_KEY:-}
+      - GW2_GUILD_ID=${GW2_GUILD_ID:-}
