@@ -82,7 +82,7 @@ async function handleCreate(interaction: ChatInputCommandInteraction) {
     // Duration
     const durationInput = new TextInputBuilder()
         .setCustomId('duration')
-        .setPlaceholder('eg., "7d", "2 weeks", "12 hours", "5 days 12 hours')
+        .setPlaceholder('eg., "7d", "2 weeks", "12 hours", "5 days 12 hours"')
         .setStyle(TextInputStyle.Short)
         .setRequired(true);
     const durationLabel = new LabelBuilder()

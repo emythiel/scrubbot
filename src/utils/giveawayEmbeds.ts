@@ -21,10 +21,8 @@ export function createGiveawayEmbed(
     }
 
     // Time information using discord timestamps
-    // Style 'R' = Relative time ("in 2 hours")
-    // Style 'F' = Full date/time ("Sunday, 15. February 2026 17:46")
     const endsRelative = formatDiscordTimestamp(giveaway.ends_at, 'R');
-    const endsAbsolute = formatDiscordTimestamp(giveaway.ends_at, 'F');
+    const endsAbsolute = formatDiscordTimestamp(giveaway.ends_at, 'f');
 
     embed.addFields(
         { name: 'Ends', value: `${endsRelative} (${endsAbsolute})`, inline: false },
@@ -55,10 +53,8 @@ export function createEndedGiveawayEmbed(
     }
 
     // Time information using discord timestamps
-    // Style 'R' = Relative time ("in 2 hours")
-    // Style 'F' = Full date/time ("Sunday, 15. February 2026 17:46")
     const endedRelative = formatDiscordTimestamp(giveaway.ends_at, 'R');
-    const endedAbsolute = formatDiscordTimestamp(giveaway.ends_at, 'F');
+    const endedAbsolute = formatDiscordTimestamp(giveaway.ends_at, 'f');
 
     embed.addFields(
         { name: 'Ended', value: `${endedRelative} (${endedAbsolute})`, inline: false },
