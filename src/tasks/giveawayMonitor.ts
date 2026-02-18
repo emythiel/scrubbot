@@ -1,24 +1,7 @@
 import type { Client, TextChannel } from 'discord.js';
 import * as db from '../database/giveaways.js';
-import { createEndedGiveawayEmbed } from '../utils/embedsGiveaways.js';
-
-/**
- * Select random winners from giveaway entries
- */
-function selectRandomWinners(entries: string[], count: number): string[] {
-    if (entries.length === 0) return [];
-
-    const pool = [...entries];
-
-    for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const tmp = pool[i] as string;
-        pool[i] = pool[j] as string;
-        pool[j] = tmp;
-    }
-
-    return pool.slice(0, Math.min(count, pool.length));
-}
+import { createEndedGiveawayEmbed } from '../utils/giveawayEmbeds.js';
+import { selectRandomWinners } from '../utils/giveawayHelpers.js';
 
 /**
  * End a giveaway and select winners

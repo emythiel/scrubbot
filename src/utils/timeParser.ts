@@ -1,5 +1,5 @@
 /**
- * Parse a duration string and return milliseconds
+ * Parse a duration string and return seconds
  *
  * Supported single durations:
  * - "10m" or "10 minutes" = 10 minutes

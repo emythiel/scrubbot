@@ -9,7 +9,8 @@ import {
     ButtonStyle,
     ChannelType,
     MessageFlags,
-    LabelBuilder
+    LabelBuilder,
+    EmbedBuilder
 } from 'discord.js';
 import type {
     ChatInputCommandInteraction,
@@ -18,7 +19,8 @@ import type {
     TextChannel
 } from 'discord.js';
 import { parseDuration, getUnixTimestamp } from '../utils/timeParser.js';
-import { createGiveawayEmbed } from '../utils/embedsGiveaways.js';
+import { createCancelledGiveawayEmbed, createEndedGiveawayEmbed, createGiveawayEmbed } from '../utils/giveawayEmbeds.js';
+import { selectRandomWinners } from '../utils/giveawayHelpers.js';
 import { CHANNELS, ROLES } from '../config.js';
 import * as db from '../database/giveaways.js';
 
@@ -28,12 +30,22 @@ export const data = new SlashCommandBuilder()
     .addSubcommand(sub =>
         sub.setName('create').setDescription('Create a new giveaway')
     )
+    .addSubcommand(sub =>
+        sub.setName('end').setDescription('End a giveaway early').addStringOption(option =>
+            option.setName('message_id').setDescription('The message ID of the giveaway').setRequired(true)
+        )
+    )
+    .addSubcommand(sub =>
+        sub.setName('cancel').setDescription('Cancel a giveaway').addStringOption(option =>
+            option.setName('message_id').setDescription('The message ID of the giveaway').setRequired(true)
+        )
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-    if (interaction.options.getSubcommand() === 'create') {
-        await handleCreate(interaction);
-    }
+    if (interaction.options.getSubcommand() === 'create') await handleCreate(interaction);
+    if (interaction.options.getSubcommand() === 'end') await handleEnd(interaction);
+    if (interaction.options.getSubcommand() === 'cancel') await handleCancel(interaction);
 }
 
 /**
@@ -268,4 +280,120 @@ export async function HandleButtonClick(interaction: ButtonInteraction) {
     const updatedEmbed = createGiveawayEmbed(giveaway, host, newCount);
 
     await interaction.message.edit({ embeds: [updatedEmbed] });
+}
+
+/**
+ * Handle '/giveaway end' command
+ */
+async function handleEnd(interaction: ChatInputCommandInteraction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    const messageId = interaction.options.getString('message_id', true);
+    const giveaway = db.getGiveaway(messageId);
+
+    if (!giveaway) {
+        await interaction.editReply({
+            content: '❌ Giveaway not found. Make sure you copied the message ID correctly.'
+        });
+        return;
+    }
+
+    if (giveaway.ended) {
+        await interaction.editReply({
+            content: '❌ This giveaway has already ended.'
+        });
+        return;
+    }
+
+    try {
+        // Get entries and select winners
+        const entries = db.getEntries(messageId);
+        const winnerIds = selectRandomWinners(entries, giveaway.winner_count);
+
+        // Update ends_at to current time (since giveaway ended early)
+        const now = getUnixTimestamp();
+        db.updateEndsAt(messageId, now);
+
+        // Add winners and mark as ended
+        db.addWinners(messageId, winnerIds);
+        db.markGiveawayEnded(messageId);
+
+        // Fetch message and update it
+        const channel = await interaction.client.channels.fetch(giveaway.channel_id) as TextChannel;
+        const message = await channel.messages.fetch(messageId);
+        const host = await interaction.client.users.fetch(giveaway.hosted_by);
+
+        // Refetch giveaway to get updated ends_at
+        const updatedGiveaway = db.getGiveaway(messageId)!;
+        const endedEmbed = createEndedGiveawayEmbed(updatedGiveaway, host, entries.length, winnerIds);
+
+        await message.edit({
+            embeds: [endedEmbed], components: []
+        });
+
+        // Send winner announcement
+        const winnerWord = winnerIds.length === 1 ? 'Winner' : 'Winners';
+        const winnerMentions = winnerIds.map(userId => `<@${userId}>`).join(', ');
+
+        await channel.send(
+            winnerIds.length > 0
+                ? `🎉 **Giveaway Ended!**\n\n**${winnerWord}**: ${winnerMentions}\n**Prize**: ${giveaway.prize}\n\nCongratulations!`
+                : `🎉 **Giveaway Ended!**\n\nNo valid entries were received.\n**Prize**: ${giveaway.prize}`
+        );
+
+        await interaction.editReply({
+            content: `✅ Giveaway ended successfully!`
+        });
+    } catch (error) {
+        console.error('Error ending giveaway:', error);
+        await interaction.editReply({
+            content: '❌ Failed to end giveaway. Please try again.'
+        });
+    }
+}
+
+/**
+ * Handle '/giveaway cancel' command
+ */
+async function handleCancel(interaction: ChatInputCommandInteraction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    const messageId = interaction.options.getString('message_id', true);
+    const giveaway = db.getGiveaway(messageId);
+
+    if (!giveaway) {
+        await interaction.editReply({
+            content: '❌ Giveaway not found. Make sure you copied the message ID correctly.'
+        });
+        return;
+    }
+
+    try {
+        // Delete from database first
+        const deleted = db.deleteGiveaway(messageId);
+
+        if (!deleted) {
+            await interaction.editReply({
+                content: '❌ Failed to delete giveaway from database.'
+            });
+            return;
+        }
+
+        // Update discord message to show it was cancelled
+        const channel = await interaction.client.channels.fetch(giveaway.channel_id) as TextChannel;
+        const message = await channel.messages.fetch(messageId);
+
+        const cancelledEmbed = createCancelledGiveawayEmbed(giveaway);
+
+        await message.edit({ embeds: [cancelledEmbed], components: [] });
+
+        await interaction.editReply({
+            content: `✅ Giveaway cancelled and removed from database.`
+        });
+    } catch (error) {
+        console.error('Error cancelling giveaway:', error);
+        await interaction.editReply({
+            content: '❌ Failed to cancel giveaway. The database entry may have been deleted, but the message update failed.'
+        });
+    }
 }

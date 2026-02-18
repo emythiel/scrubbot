@@ -84,3 +84,17 @@ export function createEndedGiveawayEmbed(
 
     return embed;
 }
+
+/**
+ * Create an embed for a cancelled giveaway
+ */
+export function createCancelledGiveawayEmbed(giveaway: Giveaway): EmbedBuilder {
+    const embed = new EmbedBuilder()
+        .setTitle(`${giveaway.prize}`)
+        .setDescription('This giveaway has been cancelled by an administrator')
+        .setColor(0x5D5A58)
+        .setFooter({ text: 'Giveaway Cancelled'});
+
+    return embed;
+}
+

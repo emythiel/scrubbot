@@ -178,3 +178,30 @@ export function getWinners(messageId: string): string[] {
 
     return JSON.parse(giveaway.winners) as string[];
 }
+
+// ------------------------------
+// Modifying giveaways
+// ------------------------------
+
+/**
+ * Update the ends_at timestamp for a giveaway (used when ending early)
+ */
+export function updateEndsAt(messageId: string, endsAt: number): void {
+    db.prepare(`
+        UPDATE giveaways
+        SET ends_at = ?
+        WHERE message_id = ?
+    `).run(endsAt, messageId);
+}
+
+/**
+ * Delete a giveaway completely (used when cancelling)
+ */
+export function deleteGiveaway(messageId: string): boolean {
+    const result = db.prepare(`
+        DELETE FROM giveaways
+        WHERE message_id = ?
+    `).run(messageId);
+
+    return result.changes > 0;
+}
