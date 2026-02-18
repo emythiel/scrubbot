@@ -8,7 +8,8 @@ import {
     ButtonBuilder,
     ButtonStyle,
     ChannelType,
-    MessageFlags
+    MessageFlags,
+    LabelBuilder
 } from 'discord.js';
 import type {
     ChatInputCommandInteraction,
@@ -44,63 +45,69 @@ async function handleCreate(interaction: ChatInputCommandInteraction) {
         .setCustomId('giveaway_create_modal')
         .setTitle('Create Giveaway');
 
-    // discord.js v14.17+ deprecates .setLabel() in favour of label builders.
-    // setLabel still works for the time being, but look into switching later.
-
     // Prize input
     const prizeInput = new TextInputBuilder()
         .setCustomId('prize')
-        .setLabel('Prize')
-        .setPlaceholder('What are you giving away?')
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setMaxLength(256);
+    const prizeLabel = new LabelBuilder()
+        .setLabel('Prize')
+        .setDescription('What to give away')
+        .setTextInputComponent(prizeInput);
 
-    // Description input
+    // Description
     const descriptionInput = new TextInputBuilder()
         .setCustomId('description')
-        .setLabel('Description (Optional)')
-        .setPlaceholder('Additional details about the giveaway')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(false)
         .setMaxLength(1024);
+    const descriptionLabel = new LabelBuilder()
+        .setLabel('Description (Optional)')
+        .setDescription('Any additional details or extra text')
+        .setTextInputComponent(descriptionInput);
 
-    // Duration input
+    // Duration
     const durationInput = new TextInputBuilder()
         .setCustomId('duration')
-        .setLabel('Duration')
-        .setPlaceholder('eg., "7d", "2 weeks", "12 hours"')
+        .setPlaceholder('eg., "7d", "2 weeks", "12 hours", "5 days 12 hours')
         .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-        .setValue('7d');
+        .setRequired(true);
+    const durationLabel = new LabelBuilder()
+        .setLabel('Duration')
+        .setDescription('The duration of the giveaway')
+        .setTextInputComponent(durationInput);
 
-    // Winnter count input
+    // Winner count
     const winnerCountInput = new TextInputBuilder()
         .setCustomId('winner_count')
-        .setLabel('Number of Winners')
-        .setPlaceholder('How many winners?')
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setValue('1')
         .setMaxLength(3);
+    const winnerCountLabel = new LabelBuilder()
+        .setLabel('Winners')
+        .setDescription('How many winners to choose')
+        .setTextInputComponent(winnerCountInput);
 
     // Announcement text input
     const announcementInput = new TextInputBuilder()
         .setCustomId('announcement')
-        .setLabel('Announcement Text (Optional)')
-        .setPlaceholder('Message for the announcement channel')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(false)
         .setMaxLength(1024)
+    const announcementLabel = new LabelBuilder()
+        .setLabel('Announcement (Optional)')
+        .setDescription('Message for the Announcement channel')
+        .setTextInputComponent(announcementInput);
 
-    // Add inputs to action rows
-    const row1 = new ActionRowBuilder<TextInputBuilder>().addComponents(prizeInput);
-    const row2 = new ActionRowBuilder<TextInputBuilder>().addComponents(descriptionInput);
-    const row3 = new ActionRowBuilder<TextInputBuilder>().addComponents(durationInput);
-    const row4 = new ActionRowBuilder<TextInputBuilder>().addComponents(winnerCountInput);
-    const row5 = new ActionRowBuilder<TextInputBuilder>().addComponents(announcementInput);
-
-    modal.addComponents(row1, row2, row3, row4, row5); // addComponents deprecated
+    modal.setLabelComponents(
+        prizeLabel,
+        descriptionLabel,
+        durationLabel,
+        winnerCountLabel,
+        announcementLabel
+    );
 
     await interaction.showModal(modal);
 }
