@@ -1,3 +1,6 @@
+import { version } from 'node:os';
+import pkg from '../package.json' with { type: 'json' };
+
 /**
  * Centralized bot configuration
  * All server-specific settings are defined here
@@ -111,6 +114,8 @@ export function isRoleConfigured(role: keyof typeof ROLES): boolean {
  */
 export function logConfigStatus(): void {
     console.log('\n=== Bot Configuration ===');
+    console.log(`Version: ${version}\n`)
+
     console.log(`Server ID: ${BOT_CONFIG.guildId}`);
     console.log(`Client ID: ${BOT_CONFIG.clientId}`);
     console.log(`Database: ${DATABASE.path}`);
