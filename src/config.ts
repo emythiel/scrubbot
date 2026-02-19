@@ -114,7 +114,7 @@ export function isRoleConfigured(role: keyof typeof ROLES): boolean {
  */
 export function logConfigStatus(): void {
     console.log('\n=== Bot Configuration ===');
-    console.log(`Version: ${version}\n`)
+    console.log(`Version: ${pkg.version}\n`)
 
     console.log(`Server ID: ${BOT_CONFIG.guildId}`);
     console.log(`Client ID: ${BOT_CONFIG.clientId}`);
