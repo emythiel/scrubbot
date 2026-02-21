@@ -1,5 +1,5 @@
 import { EmbedBuilder, User } from 'discord.js';
-import type { Giveaway } from '../types/giveaway.js';
+import type { Giveaway, GiveawayWinner } from '../types/giveaway.js';
 import { formatDiscordTimestamp } from './timeParser.js';
 
 /**
@@ -21,8 +21,6 @@ export function createGiveawayEmbed(
     }
 
     // Time information using discord timestamps
-    // Style 'R' = Relative time ("in 2 hours")
-    // Style 'F' = Full date/time ("Sunday, 15. February 2026 17:46")
     const endsRelative = formatDiscordTimestamp(giveaway.ends_at, 'R');
     const endsAbsolute = formatDiscordTimestamp(giveaway.ends_at, 'F');
 
@@ -42,7 +40,7 @@ export function createEndedGiveawayEmbed(
     giveaway: Giveaway,
     host: User,
     entryCount: number,
-    winners: string[]
+    winners: GiveawayWinner[]
 ): EmbedBuilder {
     const embed = new EmbedBuilder()
         .setTitle(`🎉 ${giveaway.prize}`)
@@ -55,8 +53,6 @@ export function createEndedGiveawayEmbed(
     }
 
     // Time information using discord timestamps
-    // Style 'R' = Relative time ("in 2 hours")
-    // Style 'F' = Full date/time ("Sunday, 15. February 2026 17:46")
     const endedRelative = formatDiscordTimestamp(giveaway.ends_at, 'R');
     const endedAbsolute = formatDiscordTimestamp(giveaway.ends_at, 'F');
 
@@ -68,10 +64,13 @@ export function createEndedGiveawayEmbed(
 
     // Add winners
     if (winners.length > 0) {
-        const winnerMentions = winners.map(userId => `<@${userId}>`).join(', ');
+        const winnerDisplay = winners.map(w =>
+            `<@${w.user_id}> ${w.claimed ? '✅' : '⏳'}`
+        ).join('\n');
+
         embed.addFields({
             name: `Winner${winners.length > 1 ? 's' : ''}`,
-            value: winnerMentions,
+            value: winnerDisplay,
             inline: false
         });
     } else {

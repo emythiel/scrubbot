@@ -12,6 +12,6 @@ export async function execute(interaction: Interaction) {
         await giveawayCommand.handleModalSubmit(interaction);
     } else if (interaction.isButton()) {
         // Handle button clicks
-        await giveawayCommand.HandleButtonClick(interaction);
+        await giveawayCommand.handleButtonClick(interaction);
     }
 }

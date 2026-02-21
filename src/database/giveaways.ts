@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import type { Giveaway } from '../types/giveaway.js';
+import type { Giveaway, GiveawayWinner } from '../types/giveaway.js';
 
 // Represents the raw shape of a row as SQLite returns it
 // SQLite has no boolean type, so 'ended' comes back as 0 or 1
@@ -161,22 +161,77 @@ export function getEntries(messageId: string): string[] {
 /**
  * Add winners to a giveaway
  */
-export function addWinners(messageId: string, userIds: string[]): void {
+export function addWinners(messageId: string, winners: GiveawayWinner[]): void {
     db.prepare(`
         UPDATE giveaways
         SET winners = ?
         WHERE message_id = ?
-    `).run(JSON.stringify(userIds), messageId);
+    `).run(JSON.stringify(winners), messageId);
 }
 
 /**
  * Get winner user IDs for a giveaway
  */
-export function getWinners(messageId: string): string[] {
+export function getWinners(messageId: string): GiveawayWinner[] {
     const giveaway = getGiveaway(messageId);
     if (!giveaway) return [];
 
-    return JSON.parse(giveaway.winners) as string[];
+    return JSON.parse(giveaway.winners) as GiveawayWinner[];
+}
+
+/**
+ * Get a specific winner's data
+ */
+export function getWinnerData(messageId: string, userId: string): GiveawayWinner | null {
+    const winners = getWinners(messageId);
+    return winners.find(w => w.user_id === userId) || null;
+}
+
+/**
+ * Mark a winner as having claimed their prize
+ */
+export function claimPrize(messageId: string, userId: string, gw2Id: string): boolean {
+    const giveaway = getGiveaway(messageId);
+    if (!giveaway) return false;
+
+    const winners = getWinners(messageId);
+    const winner = winners.find(W => W.user_id === userId);
+
+    if (!winner || winner.claimed) return false;
+
+    winner.claimed = true;
+    winner.gw2_id = gw2Id;
+
+    db.prepare(`
+        UPDATE giveaways
+        SET winners = ?
+        WHERE message_id = ?
+    `).run(JSON.stringify(winners), messageId);
+
+    return true;
+}
+
+/**
+ * Replace unclaimed winners with new winners (for rerolling)
+ * Keeps claimed winners, replaces unclaimed with new ones
+ */
+export function replaceUnclaimedWinners(messageId: string, newWinners: GiveawayWinner[]): void {
+    const giveaway = getGiveaway(messageId);
+    if (!giveaway) return;
+
+    const currentWinners = getWinners(messageId);
+
+    // Keep claimed winners
+    const claimedWinners = currentWinners.filter(w => w.claimed);
+
+    // Combine claimed winners with new unclaimed winners
+    const updatedWinners = [...claimedWinners, ...newWinners];
+
+    db.prepare(`
+        UPDATE giveaways
+        SET winners = ?
+        WHERE message_id = ?
+    `).run(JSON.stringify(updatedWinners), messageId);
 }
 
 // ------------------------------
