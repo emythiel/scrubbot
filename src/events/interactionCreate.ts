@@ -1,27 +1,64 @@
-import type { Interaction } from 'discord.js';
+import type {
+    Interaction,
+    ChatInputCommandInteraction,
+    ModalSubmitInteraction,
+    ButtonInteraction,
+    StringSelectMenuInteraction,
+} from 'discord.js';
 import * as giveawayCommand from '../commands/giveaway.js';
 import * as foodcheckCommand from '../commands/foodcheck.js';
 
+
+// ---------------------------------------------------------------------------
+// Command module interface
+// Each command file exports the handlers it supports. Optional handlers are
+// only called when an interaction's customId starts with the command's name.
+// ---------------------------------------------------------------------------
+
+interface CommandModule {
+    execute:            (interaction: ChatInputCommandInteraction) => Promise<void>;
+    handleModalSubmit?: (interaction: ModalSubmitInteraction) => Promise<void>;
+    handleButtonClick?: (interaction: ButtonInteraction) => Promise<void>;
+    handleSelectMenu?:  (interaction: StringSelectMenuInteraction) => Promise<void>;
+}
+
+
+// ---------------------------------------------------------------------------
+// Registry
+// ---------------------------------------------------------------------------
+
+const commands = new Map<string, CommandModule>([
+    ['giveaway',   giveawayCommand],
+    ['foodcheck',  foodcheckCommand]
+]);
+
+
+// ---------------------------------------------------------------------------
+// Prefix-based lookup for modal / button / select interactions
+// ---------------------------------------------------------------------------
+
+function findCommandByPrefix(customId: string): CommandModule | undefined {
+    for (const [name, cmd] of commands) {
+        if (customId.startsWith(`${name}_`)) return cmd;
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// Main handler
+// ---------------------------------------------------------------------------
+
 export async function execute(interaction: Interaction) {
     if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === 'giveaway') {
-            await giveawayCommand.execute(interaction);
-        } else if (interaction.commandName === 'foodcheck') {
-            await foodcheckCommand.execute(interaction);
-        }
+        await commands.get(interaction.commandName)?.execute(interaction);
+
     } else if (interaction.isModalSubmit()) {
-        if (interaction.customId.startsWith('giveaway_')) {
-            await giveawayCommand.handleModalSubmit(interaction);
-        } else if (interaction.customId.startsWith('foodcheck_')) {
-            await foodcheckCommand.handleModalSubmit(interaction);
-        }
+        await findCommandByPrefix(interaction.customId)?.handleModalSubmit?.(interaction);
+
     } else if (interaction.isButton()) {
-        if (interaction.customId.startsWith('giveaway_')) {
-            await giveawayCommand.handleButtonClick(interaction);
-        }
+        await findCommandByPrefix(interaction.customId)?.handleButtonClick?.(interaction);
+
     } else if (interaction.isStringSelectMenu()) {
-        if (interaction.customId.startsWith('foodcheck_')) {
-            await foodcheckCommand.handleSelectMenu(interaction);
-        }
+        await findCommandByPrefix(interaction.customId)?.handleSelectMenu?.(interaction);
     }
 }

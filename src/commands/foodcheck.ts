@@ -41,15 +41,19 @@ export const data = new SlashCommandBuilder()
 
 
 // ---------------------------------------------------------------------------
-// Entry points (called from interactionCreate)
+// Subcommand dispatcher
 // ---------------------------------------------------------------------------
 
-export async function execute(interaction: ChatInputCommandInteraction) {
-    const sub = interaction.options.getSubcommand();
+// Subcommand registry: maps subcommand name -> handler function
+const subcommands: Record<string, (interaction: ChatInputCommandInteraction) => Promise<void>> = {
+    add:    handleAdd,
+    remove: handleRemove,
+    status: handleStatus,
+};
 
-    if (sub === 'add') await handleAdd(interaction);
-    else if (sub === 'remove') await handleRemove(interaction);
-    else if (sub === 'status') await handleStatus(interaction);
+export async function execute(interaction: ChatInputCommandInteraction) {
+    const handler = subcommands[interaction.options.getSubcommand()];
+    if (handler) await handler(interaction);
 }
 
 export async function handleModalSubmit(interaction: ModalSubmitInteraction) {

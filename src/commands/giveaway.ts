@@ -20,9 +20,14 @@ import type {
 import type { GiveawayWinner } from '../types/giveaway.js';
 import { parseDuration, getUnixTimestamp } from '../utils/timeParser.js';
 import { createCancelledGiveawayEmbed, createEndedGiveawayEmbed, createGiveawayEmbed } from '../utils/embeds/giveaway.js';
-import { selectRandomWinners, validateGW2Id } from '../utils/giveawayHelpers.js';
+import { selectRandomWinners, validateGW2Id } from '../utils/helpers.js';
 import { CHANNELS, ROLES } from '../config.js';
 import * as db from '../database/giveaways.js';
+
+
+// ---------------------------------------------------------------------------
+// Command definition
+// ---------------------------------------------------------------------------
 
 export const data = new SlashCommandBuilder()
     .setName('giveaway')
@@ -47,18 +52,31 @@ export const data = new SlashCommandBuilder()
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
-export async function execute(interaction: ChatInputCommandInteraction) {
-    const sub = interaction.options.getSubcommand();
+// ---------------------------------------------------------------------------
+// Subcommand dispatcher
+// ---------------------------------------------------------------------------
 
-    if (sub === 'create') await handleCreate(interaction);
-    else if (sub === 'end') await handleEnd(interaction);
-    else if (sub === 'cancel') await handleCancel(interaction);
-    else if (sub === 'reroll') await handleReroll(interaction);
+// Subcommand registry: maps subcommand name -> handler function
+const subcommands: Record<string, (interaction: ChatInputCommandInteraction) => Promise<void>> = {
+    create:  handleCreate,
+    end:     handleEnd,
+    cancel:  handleCancel,
+    reroll:  handleReroll,
+};
+
+export async function execute(interaction: ChatInputCommandInteraction) {
+    const handler = subcommands[interaction.options.getSubcommand()];
+    if (handler) await handler(interaction);
 }
 
-/**
- * Handle giveaway buttons for entering / leaving giveaways, and claiming prize
- */
+export async function handleModalSubmit(interaction: ModalSubmitInteraction) {
+    if (interaction.customId === 'giveaway_create_modal') {
+        await handleCreateModalSubmit(interaction);
+    } else if (interaction.customId.startsWith('giveaway_claim_modal_')) {
+        await handleClaimModalSubmit(interaction);
+    }
+}
+
 export async function handleButtonClick(interaction: ButtonInteraction) {
     if (interaction.customId === 'giveaway_enter') {
         await handleEnterButton(interaction);
@@ -67,16 +85,10 @@ export async function handleButtonClick(interaction: ButtonInteraction) {
     }
 }
 
-/**
- * Handle giveaway modal submissions
- */
-export async function handleModalSubmit(interaction: ModalSubmitInteraction) {
-    if (interaction.customId === 'giveaway_create_modal') {
-        await handleCreateModalSubmit(interaction);
-    } else if (interaction.customId.startsWith('giveaway_claim_modal_')) {
-        await handleClaimModalSubmit(interaction);
-    }
-}
+
+// ---------------------------------------------------------------------------
+// Giveaway creation
+// ---------------------------------------------------------------------------
 
 /**
  * Handle '/giveaway create' command
@@ -219,7 +231,8 @@ async function handleCreateModalSubmit(interaction: ModalSubmitInteraction) {
         // Create enter button
         const enterButton = new ButtonBuilder()
             .setCustomId('giveaway_enter')
-            .setLabel('🎉 Enter Giveaway')
+            .setLabel('Enter/Leave Giveaway')
+            .setEmoji('🎉')
             .setStyle(ButtonStyle.Primary);
 
         // Send the giveaway message
@@ -266,6 +279,11 @@ async function handleCreateModalSubmit(interaction: ModalSubmitInteraction) {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Giveaway entering/leaving
+// ---------------------------------------------------------------------------
+
 /**
  * Handle button click for entering/leaving giveaway
  */
@@ -311,6 +329,11 @@ async function handleEnterButton(interaction: ButtonInteraction) {
 
     await interaction.message.edit({ embeds: [updatedEmbed] });
 }
+
+
+// ---------------------------------------------------------------------------
+// Giveaway prize claiming
+// ---------------------------------------------------------------------------
 
 /**
  * Handle claim button for ended giveaways
@@ -444,9 +467,9 @@ async function handleClaimModalSubmit(interaction: ModalSubmitInteraction) {
         const host = await interaction.client.users.fetch(giveaway.hosted_by);
         await host.send(
             `🎁 **Prize Claimed!**\n\n` +
-            `**Giveaway:** ${giveaway.prize}\n` +
+            `**Giveaway Prize:** ${giveaway.prize}\n` +
             `**Winner:** ${interaction.user.tag} (<@${interaction.user.id}>)\n` +
-            `**GW2 ID:** \`${gw2Id}\``
+            `**GW2 ID:**\n\`\`\`${gw2Id}\`\`\``
         );
     } catch (error) {
         console.error('Error DMing host:', error);
@@ -454,9 +477,14 @@ async function handleClaimModalSubmit(interaction: ModalSubmitInteraction) {
     }
 
     await interaction.editReply({
-        content: `✅ Prize claimed successfully! The host has been notified with your GW2 ID.`
+        content: `✅ Prize claimed successfully! The host has been notified.`
     });
 }
+
+
+// ---------------------------------------------------------------------------
+// Giveaway ending
+// ---------------------------------------------------------------------------
 
 /**
  * Handle '/giveaway end' command
@@ -546,6 +574,11 @@ async function handleEnd(interaction: ChatInputCommandInteraction) {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Giveaway cancelling
+// ---------------------------------------------------------------------------
+
 /**
  * Handle '/giveaway cancel' command
  */
@@ -591,6 +624,11 @@ async function handleCancel(interaction: ChatInputCommandInteraction) {
         });
     }
 }
+
+
+// ---------------------------------------------------------------------------
+// Giveaway rerolling
+// ---------------------------------------------------------------------------
 
 /**
  * Handle '/giveaway reroll' command

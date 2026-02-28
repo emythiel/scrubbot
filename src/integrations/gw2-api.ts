@@ -106,7 +106,7 @@ export async function fetchFoodItemData(apiUrl: string): Promise<FoodItemData> {
     if (!gizmo || gizmo.details?.guild_upgrade_id == null) {
         throw new Error(
             'Could not find a `guild_upgrade_id` in the API response. ' +
-            'Make sure the URL includes both the Food and its Gizmo variant (e.g. ?ids=91734,92479).'
+            'Make sure the URL includes both Gizmo variant.'
         );
     }
 

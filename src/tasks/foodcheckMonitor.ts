@@ -1,15 +1,9 @@
+import cron from 'node-cron';
 import type { Client, TextChannel } from 'discord.js';
 import * as db from '../database/foodcheck.js';
 import { fetchGuildStorage } from '../integrations/gw2-api.js';
 import { createFoodAlertEmbeds } from '../utils/embeds/foodcheck.js';
 import { FOODCHECK_CONFIG, GW2_CONFIG } from '../config.js';
-
-/**
- * Stable key for the current UTC minute.
- * Prevents the monitor from firing more than once in the same scheduled minute
- * even if the setInterval callback ticks a few times close together.
- */
-let lastRunTimestamp: string | null = null;
 
 
 // ---------------------------------------------------------------------------
@@ -83,27 +77,10 @@ export async function runFoodCheck(client: Client): Promise<string> {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns true if now (UTC) matches configured schedule day/hour/minute
- */
-function isSchedulesTime(now: Date): boolean {
-    return (
-        now.getUTCDay() === FOODCHECK_CONFIG.scheduleDay &&
-        now.getUTCHours() === FOODCHECK_CONFIG.scheduleHour &&
-        now.getUTCMinutes() === FOODCHECK_CONFIG.scheduleMinute
-    );
-}
-
-/**
- * A stable string key for the current UTC minute — used to ensure we only
- * fire once per scheduled minute even if the interval ticks a few times.
- */
-function currentMinuteKey(now: Date): string {
-    return `${now.getUTCFullYear()}-${now.getUTCMonth()}-${now.getUTCDate()}-${now.getUTCHours()}-${now.getUTCMinutes()}`
-}
-
-/**
  * Start food check monitor.
- * Pools once per minute and fires the check on the configured schedule.
+ *
+ * Uses setTimeout to fire precisely at the scheduled time, then setInterval
+ * to repeat every week from that point.
  */
 export function startFoodCheckMonitor(client: Client) {
     if (!FOODCHECK_CONFIG.channelId) {
@@ -111,22 +88,10 @@ export function startFoodCheckMonitor(client: Client) {
         return;
     }
 
-    console.log(
-        `[FoodCheck] Monitor started. ` +
-        `Scheduled: ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][FOODCHECK_CONFIG.scheduleDay]} ` +
-        `${String(FOODCHECK_CONFIG.scheduleHour).padStart(2,'0')}:` +
-        `${String(FOODCHECK_CONFIG.scheduleMinute).padStart(2,'0')} UTC`
-    )
+    console.log(`[FoodCheck] Monitor started. Scheduled: ${FOODCHECK_CONFIG.schedule} (UTC)`);
 
-    setInterval(async () => {
-        const now = new Date();
-        if (!isSchedulesTime(now)) return;
-
-        const key = currentMinuteKey(now);
-        if (lastRunTimestamp === key) return; // Already ran this minute
-        lastRunTimestamp = key;
-
-        console.log('[FoodCheck] Running schedules food check...');
-        await runFoodCheck(client);
-    }, 60 * 1000);
+    cron.schedule(FOODCHECK_CONFIG.schedule, () => {
+        console.log('[FoodCheck] Running scheduled food check...');
+        runFoodCheck(client);
+    }, { timezone: 'UTC' });
 }

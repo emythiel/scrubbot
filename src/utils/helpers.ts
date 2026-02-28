@@ -1,5 +1,5 @@
 /**
- * Select random entries from an array of strings
+ * Select random entries from an array of strings, using Fisher-Yates shuffle
  */
 export function selectRandomWinners(entries: string[], count: number): string[] {
     if (entries.length === 0) return [];

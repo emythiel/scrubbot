@@ -11,7 +11,7 @@ export function createGiveawayEmbed(
     entryCount: number
 ): EmbedBuilder {
     const embed = new EmbedBuilder()
-        .setTitle(`🎉 ${giveaway.prize}`)
+        .setTitle(`${giveaway.prize}`)
         .setColor(0x5865F2)
         .setFooter({ text: `Giveaway` });
 
@@ -22,12 +22,13 @@ export function createGiveawayEmbed(
 
     // Time information using discord timestamps
     const endsRelative = formatDiscordTimestamp(giveaway.ends_at, 'R');
-    const endsAbsolute = formatDiscordTimestamp(giveaway.ends_at, 'F');
+    const endsAbsolute = formatDiscordTimestamp(giveaway.ends_at, 'f');
 
     embed.addFields(
         { name: 'Ends', value: `${endsRelative} (${endsAbsolute})`, inline: false },
         { name: 'Hosted by', value: host.toString(), inline: true },
-        { name: 'Entries', value: entryCount.toString(), inline: true }
+        { name: 'Entries', value: entryCount.toString(), inline: true },
+        { name: 'Winners', value: giveaway.winner_count.toString(), inline: true }
     );
 
     return embed;
@@ -54,7 +55,7 @@ export function createEndedGiveawayEmbed(
 
     // Time information using discord timestamps
     const endedRelative = formatDiscordTimestamp(giveaway.ends_at, 'R');
-    const endedAbsolute = formatDiscordTimestamp(giveaway.ends_at, 'F');
+    const endedAbsolute = formatDiscordTimestamp(giveaway.ends_at, 'f');
 
     embed.addFields(
         { name: 'Ended', value: `${endedRelative} (${endedAbsolute})`, inline: false },

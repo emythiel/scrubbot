@@ -1,9 +1,11 @@
+import cron from 'node-cron';
 import type { Client, TextChannel } from 'discord.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import type { GiveawayWinner } from '../types/giveaway.js';
 import * as db from '../database/giveaways.js';
 import { createEndedGiveawayEmbed } from '../utils/embeds/giveaway.js';
-import { selectRandomWinners } from '../utils/giveawayHelpers.js';
+import { selectRandomWinners } from '../utils/helpers.js';
+import { GIVEAWAY_CONFIG } from '../config.js';
 
 /**
  * End a giveaway and select winners
@@ -75,11 +77,13 @@ async function checkExpiredGiveaways(client: Client) {
  * Checks for expired giveaways every 30 seconds
  */
 export function startGiveawayMonitor(client: Client) {
-    console.log('Starting giveaway monitor...');
+    console.log('[Giveaway] Monitor started. Checking every minute.');
 
-    // Check immediately on startup
-    checkExpiredGiveaways(client);
+    // Run on startup to catch any giveaways that expired while bot was offline
+    checkExpiredGiveaways(client)
 
-    // Check every 30 seconds
-    setInterval(() => checkExpiredGiveaways(client), 30 * 1000);
+    // Run cron job schedule
+    cron.schedule(GIVEAWAY_CONFIG.schedule, () => {
+        checkExpiredGiveaways(client);
+    });
 }

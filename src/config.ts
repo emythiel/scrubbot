@@ -88,14 +88,8 @@ export const GW2_CONFIG = {
  * Giveaway configuration
  */
 export const GIVEAWAY_CONFIG = {
-    /** How often to check for expired giveaways (in milliseconds) */
-    checkInterval: 30 * 1000,  // 30 seconds
-
-    /** Default giveaway duration if not specified */
-    defaultDuration: 7 * 24 * 60 * 60,  // 7 days in seconds
-
-    /** Default number of winners */
-    defaultWinnerCount: 1,
+    /** Cron schedule - how often to check */
+    schedule: '*/1 * * * *',
 } as const;
 
 /**
@@ -105,19 +99,14 @@ export const FOODCHECK_CONFIG = {
     /** Channel to post low-stock alerts to. Must be set for monitor to run */
     channelId: process.env.FOODCHECK_CHANNEL_ID || CHANNELS.admin,
 
-    /** Role ID to pring in alert messages */
+    /** Role ID to ping in alert messages */
     roleId: ROLES.foodcheck || null,
 
     /** Item threshold for automated check */
     threshold: parseInt(process.env.FOODCHECK_THRESHOLD || '15', 10),
 
-    /**
-     * Schedules check time (UTC)
-     * Default: Sunday 20:00 UTC
-     */
-    scheduleDay: 0,
-    scheduleHour: 20,
-    scheduleMinute: 0,
+    /** Cron schedule - how often to check */
+    schedule: '0 20 * * 0'
 } as const;
 
 
