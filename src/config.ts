@@ -97,7 +97,7 @@ export const GIVEAWAY_CONFIG = {
  */
 export const FOODCHECK_CONFIG = {
     /** Channel to post low-stock alerts to. Must be set for monitor to run */
-    channelId: CHANNELS.mentor,
+    channelId: CHANNELS.mentor || null,
 
     /** Role ID to ping in alert messages */
     roleId: ROLES.foodcheck || null,
