@@ -116,3 +116,75 @@ export async function fetchFoodItemData(apiUrl: string): Promise<FoodItemData> {
         icon: gizmo.icon,
     };
 }
+
+
+// ---------------------------------------------------------------------------
+// Wiki scraping (used during /foodcheck add)
+// ---------------------------------------------------------------------------
+
+/**
+ * URLs extracted from a GW2 wiki item page
+ */
+export interface WikiPageUrls {
+    apiUrl: string;
+    gw2EfficiencyUrl: string;
+}
+
+/**
+ * Fetch a GW2 wiki item page and extract the GW2 API items URL and the
+ * GW2 Efficiency crafting URL from the page HTML
+ *
+ * @throws if the page can't be fetched or either URL is not found on the page.
+ */
+export async function fetchWikiUrls(wikiUrl: string): Promise<WikiPageUrls> {
+    // Basic URL validation
+    let parsedUrl: URL;
+    try {
+        parsedUrl = new URL(wikiUrl);
+    } catch {
+        throw new Error('The Wiki URL you entered is not a valid URL.');
+    }
+
+    if (!parsedUrl.hostname.includes('wiki.guildwars2.com')) {
+        throw new Error('The Wiki URL must point to wiki.guildwars2.com.');
+    }
+
+    const response = await fetch(wikiUrl, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; ScrubBot/1.0; guild food monitor)'
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Wiki returned ${response.status}: ${response.statusText}`);
+    }
+
+    const html = await response.text();
+
+    // Extract GW2 API items URL
+    // Matches: href="https://api.guildwars2.com/v2/items?..."
+    // The URL may contain & amp; in raw HTML - decode it after extraction
+    const apiMatch = html.match(/href="(https:\/\/api\.guildwars2\.com\/v2\/items\?[^"]+)"/);
+    if (!apiMatch || !apiMatch[1]) {
+        throw new Error(
+            'Could not find a GW2 API items URL on this wiki page. ' +
+            'Make sure the URL points to a food item page, and has a link to the API.'
+        );
+    }
+
+    // Extract GW2 Efficiency crafting calculator URL
+    // Matches: href="https://gw2efficiency.com/crafting/calculator/..."
+    const efficiencyMatch = html.match(/href="(https:\/\/gw2efficiency\.com\/crafting\/calculator\/[^"]+)"/);
+    if (!efficiencyMatch || !efficiencyMatch[1]) {
+        throw new Error(
+            'Could not find a GW2 Efficiency URL on this wiki page. ' +
+            'Make sure the URL points to a food item page, and has a link to GW2 Efficiency.'
+        );
+    }
+
+    return {
+        // Decode HTML entities (e.g. & amp; -> &)
+        apiUrl: apiMatch[1].replaceAll('&amp;', '&'),
+        gw2EfficiencyUrl: efficiencyMatch[1]
+    };
+}

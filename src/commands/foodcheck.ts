@@ -16,7 +16,7 @@ import type {
     StringSelectMenuInteraction,
 } from 'discord.js';
 import * as db from '../database/foodcheck.js';
-import { fetchFoodItemData, fetchGuildStorage } from '../integrations/gw2-api.js';
+import { fetchFoodItemData, fetchGuildStorage, fetchWikiUrls } from '../integrations/gw2-api.js';
 import { createFoodAddedEmbed, createFoodStatusEmbed } from '../utils/embeds/foodcheck.js';
 import { FOODCHECK_CONFIG, GW2_CONFIG } from '../config.js';
 
@@ -78,17 +78,6 @@ async function handleAdd(interaction: ChatInputCommandInteraction) {
         .setCustomId('foodcheck_add_modal')
         .setTitle('Add Food Item')
 
-    const apiUrlInput = new TextInputBuilder()
-        .setCustomId('api_url')
-        .setPlaceholder('https://api.guildwars2.com/v2/items?ids=91734,92479&lang=en')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-        .setMaxLength(512);
-    const apiUrlLabel = new LabelBuilder()
-        .setLabel('GW2 API URL')
-        .setDescription('Link to the Guild Wars 2 API for the food item')
-        .setTextInputComponent(apiUrlInput);
-
     const wikiUrlInput = new TextInputBuilder()
         .setCustomId('wiki_url')
         .setPlaceholder('https://wiki.guildwars2.com/wiki/Peppercorn-Crusted_Sous-Vide_Steak')
@@ -100,22 +89,7 @@ async function handleAdd(interaction: ChatInputCommandInteraction) {
         .setDescription('Link to the Guild Wars 2 Wiki page for the food item')
         .setTextInputComponent(wikiUrlInput);
 
-    const efficiencyUrlInput = new TextInputBuilder()
-        .setCustomId('gw2_efficiency_url')
-        .setPlaceholder('https://gw2efficiency.com/crafting/calculator/a~0!b~1!c~0!d~1-91734')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-        .setMaxLength(512);
-    const efficiencyUrlLabel = new LabelBuilder()
-        .setLabel('GW2 Efficiency URL')
-        .setDescription('Link to the Guild Wars 2 Efficiency crafting page for the food item')
-        .setTextInputComponent(efficiencyUrlInput);
-
-    modal.setLabelComponents(
-        apiUrlLabel,
-        wikiUrlLabel,
-        efficiencyUrlLabel
-    );
+    modal.setLabelComponents(wikiUrlLabel);
 
     await interaction.showModal(modal);
 }
@@ -123,14 +97,24 @@ async function handleAdd(interaction: ChatInputCommandInteraction) {
 async function handleAddModalSubmit(interaction: ModalSubmitInteraction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const apiUrl = interaction.fields.getTextInputValue('api_url').trim();
     const wikiUrl = interaction.fields.getTextInputValue('wiki_url').trim();
-    const gw2EfficiencyUrl = interaction.fields.getTextInputValue('gw2_efficiency_url');
+
+    // Scrape wiki page for GW2 API and GW2 Efficiency URLs
+    let wikiUrls;
+    try {
+        wikiUrls = await fetchWikiUrls(wikiUrl);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        await interaction.editReply({
+            content: `❌ Failed to read the wiki page.\n\n**Reason:** ${message}`
+        });
+        return;
+    }
 
     // Fetch item data from GW2 API
     let itemData;
     try {
-        itemData = await fetchFoodItemData(apiUrl);
+        itemData = await fetchFoodItemData(wikiUrls.apiUrl);
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         await interaction.editReply({
@@ -155,7 +139,7 @@ async function handleAddModalSubmit(interaction: ModalSubmitInteraction) {
             name: itemData.name,
             icon: itemData.icon,
             wiki_url: wikiUrl,
-            gw2_efficiency_url: gw2EfficiencyUrl
+            gw2_efficiency_url: wikiUrls.gw2EfficiencyUrl
         });
     } catch (error) {
         console.error('Error saving food to database:', error);
@@ -166,7 +150,7 @@ async function handleAddModalSubmit(interaction: ModalSubmitInteraction) {
     }
 
     await interaction.editReply({
-        embeds: [createFoodAddedEmbed(itemData, wikiUrl, gw2EfficiencyUrl, FOODCHECK_CONFIG.threshold)]
+        embeds: [createFoodAddedEmbed(itemData, wikiUrl, wikiUrls.gw2EfficiencyUrl, FOODCHECK_CONFIG.threshold)]
     });
 }
 
