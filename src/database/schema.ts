@@ -44,6 +44,17 @@ export function initializeDatabase(): Database.Database {
         ON giveaways(ended, ends_at);
     `);
 
+    // Foodcheck table
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS foodcheck (
+            guild_upgrade_id    INTEGER PRIMARY KEY,
+            name                TEXT    NOT NULL,
+            icon                TEXT    NOT NULL,
+            wiki_url            TEXT    NOT NULL,
+            gw2_efficiency_url  TEXT    NOT NULL
+        )
+    `);
+
     console.log('Database initialized successfully');
 
     return db;

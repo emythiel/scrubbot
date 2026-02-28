@@ -1,10 +1,12 @@
 import { Client, Events, GatewayIntentBits, MessageFlags, REST, Routes } from 'discord.js';
 import { initializeDatabase } from './database/schema.js';
-import { setDatabase } from './database/giveaways.js';
+import { setDatabase as setGiveawayDb } from './database/giveaways.js';
+import { setDatabase as setFoodcheckDb } from './database/foodcheck.js';
 import { BOT_CONFIG, logConfigStatus } from './config.js';
 import * as readyEvent from './events/ready.js';
 import * as interactionCreateEvent from './events/interactionCreate.js';
 import * as giveawayCommand from './commands/giveaway.js';
+import * as foodcheckCommand from './commands/foodcheck.js';
 
 // Validate configuration on startup
 console.log('Validating configuration...');
@@ -13,7 +15,8 @@ logConfigStatus();
 // Initialize database
 console.log('Initializing database...');
 const db = initializeDatabase();
-setDatabase(db);
+setGiveawayDb(db);
+setFoodcheckDb(db);
 
 // Create Discord client
 const client = new Client({
@@ -54,7 +57,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // Register slash commands
 async function registerCommands() {
     const commands = [
-        giveawayCommand.data.toJSON()
+        giveawayCommand.data.toJSON(),
+        foodcheckCommand.data.toJSON()
     ];
 
     const rest = new REST().setToken(BOT_CONFIG.token);

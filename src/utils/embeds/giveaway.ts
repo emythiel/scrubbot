@@ -1,6 +1,6 @@
 import { EmbedBuilder, User } from 'discord.js';
-import type { Giveaway, GiveawayWinner } from '../types/giveaway.js';
-import { formatDiscordTimestamp } from './timeParser.js';
+import type { Giveaway, GiveawayWinner } from '../../types/giveaway.js';
+import { formatDiscordTimestamp } from '../timeParser.js';
 
 /**
  * Create an embed for an active giveaway

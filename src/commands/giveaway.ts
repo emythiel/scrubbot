@@ -19,7 +19,7 @@ import type {
 } from 'discord.js';
 import type { GiveawayWinner } from '../types/giveaway.js';
 import { parseDuration, getUnixTimestamp } from '../utils/timeParser.js';
-import { createCancelledGiveawayEmbed, createEndedGiveawayEmbed, createGiveawayEmbed } from '../utils/giveawayEmbeds.js';
+import { createCancelledGiveawayEmbed, createEndedGiveawayEmbed, createGiveawayEmbed } from '../utils/embeds/giveaway.js';
 import { selectRandomWinners, validateGW2Id } from '../utils/giveawayHelpers.js';
 import { CHANNELS, ROLES } from '../config.js';
 import * as db from '../database/giveaways.js';

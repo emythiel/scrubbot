@@ -1,4 +1,3 @@
-import { version } from 'node:os';
 import pkg from '../package.json' with { type: 'json' };
 
 /**
@@ -39,6 +38,12 @@ export const CHANNELS = {
 
     /** General/main channel */
     general: process.env.CHANNEL_ID_GENERAL || null,
+
+    /** Admin channel */
+    admin: process.env.CHANNEL_ID_ADMIN || null,
+
+    /** Mentor channel */
+    mentor: process.env.CHANNEL_ID_MENTOR || null,
 } as const;
 
 
@@ -51,6 +56,7 @@ export const ROLES = {
     member: process.env.ROLE_ID_MEMBER || null,
     guest: process.env.ROLE_ID_GUEST || null,
     giveaway: process.env.ROLE_ID_GIVEAWAY || null,
+    foodcheck: process.env.ROLE_ID_FOODCHECK || null,
 } as const;
 
 
@@ -90,6 +96,28 @@ export const GIVEAWAY_CONFIG = {
 
     /** Default number of winners */
     defaultWinnerCount: 1,
+} as const;
+
+/**
+ * Foodcheck configuration
+ */
+export const FOODCHECK_CONFIG = {
+    /** Channel to post low-stock alerts to. Must be set for monitor to run */
+    channelId: process.env.FOODCHECK_CHANNEL_ID || CHANNELS.admin,
+
+    /** Role ID to pring in alert messages */
+    roleId: ROLES.foodcheck || null,
+
+    /** Item threshold for automated check */
+    threshold: parseInt(process.env.FOODCHECK_THRESHOLD || '15', 10),
+
+    /**
+     * Schedules check time (UTC)
+     * Default: Sunday 20:00 UTC
+     */
+    scheduleDay: 0,
+    scheduleHour: 20,
+    scheduleMinute: 0,
 } as const;
 
 

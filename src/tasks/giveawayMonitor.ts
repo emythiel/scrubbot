@@ -2,7 +2,7 @@ import type { Client, TextChannel } from 'discord.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import type { GiveawayWinner } from '../types/giveaway.js';
 import * as db from '../database/giveaways.js';
-import { createEndedGiveawayEmbed } from '../utils/giveawayEmbeds.js';
+import { createEndedGiveawayEmbed } from '../utils/embeds/giveaway.js';
 import { selectRandomWinners } from '../utils/giveawayHelpers.js';
 
 /**
