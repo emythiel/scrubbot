@@ -5,6 +5,7 @@ import { setDatabase as setFoodcheckDb } from './database/foodcheck.js';
 import { BOT_CONFIG, logConfigStatus } from './config.js';
 import * as readyEvent from './events/ready.js';
 import * as interactionCreateEvent from './events/interactionCreate.js';
+import * as guildGuestRoles from './events/guildGuestRoles.js';
 import * as giveawayCommand from './commands/giveaway.js';
 import * as foodcheckCommand from './commands/foodcheck.js';
 
@@ -22,11 +23,16 @@ setFoodcheckDb(db);
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages
     ]
 });
 
-// Register event handlers
+
+// ---------------------------------------------------------------------------
+// Event Handler Registration
+// ---------------------------------------------------------------------------
+
 client.once(Events.ClientReady, (readyClient) => {
     readyEvent.execute(readyClient);
 });
@@ -54,7 +60,34 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
-// Register slash commands
+
+// ---------------------------------------------------------------------------
+// Guest Role Assignment
+// ---------------------------------------------------------------------------
+
+// Assign guest role when a user joins
+client.on(Events.GuildMemberAdd, async (member) => {
+    try {
+        await guildGuestRoles.executeGuest(member);
+    } catch (error) {
+        console.error('Error handling guildGuestRoles:', error);
+    }
+});
+
+// Remove Guest role when Member role is assigned
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+    try {
+        await guildGuestRoles.executeMember(oldMember, newMember);
+    } catch (error) {
+        console.error('Error handling guildGuestRoles:', error);
+    }
+});
+
+
+// ---------------------------------------------------------------------------
+// Slash Commands Registration
+// ---------------------------------------------------------------------------
+
 async function registerCommands() {
     const commands = [
         giveawayCommand.data.toJSON(),
@@ -79,7 +112,11 @@ async function registerCommands() {
     }
 }
 
+
+// ---------------------------------------------------------------------------
 // Start the bot
+// ---------------------------------------------------------------------------
+
 async function start() {
     try {
         await registerCommands();
