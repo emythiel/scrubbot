@@ -5,7 +5,7 @@ import { ROLES } from '../config.js';
  * Fired when a user joins the server.
  * Automatically assigns Guest role.
  */
-export async function executeGuest(member: GuildMember): Promise<void> {
+export async function addGuest(member: GuildMember): Promise<void> {
     if (!ROLES.guest) {
         console.warn('Guest role is not configured — skipping auto-assign on join.');
         return;
@@ -23,7 +23,7 @@ export async function executeGuest(member: GuildMember): Promise<void> {
  * Fired when a guild member is updated (roles, nickname, etc).
  * When 'Member' role is added, remove 'Guest' role.
  */
-export async function executeMember(
+export async function removeGuest(
     oldMember: GuildMember | PartialGuildMember,
     newMember: GuildMember
 ): Promise<void> {

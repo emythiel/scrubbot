@@ -5,7 +5,7 @@ import { setDatabase as setFoodcheckDb } from './database/foodcheck.js';
 import { BOT_CONFIG, logConfigStatus } from './config.js';
 import * as readyEvent from './events/ready.js';
 import * as interactionCreateEvent from './events/interactionCreate.js';
-import * as guildGuestRoles from './events/guildGuestRoles.js';
+import * as guildRoleAssignment from './events/guildRoleAssignment.js';
 import * as giveawayCommand from './commands/giveaway.js';
 import * as foodcheckCommand from './commands/foodcheck.js';
 
@@ -68,18 +68,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // Assign guest role when a user joins
 client.on(Events.GuildMemberAdd, async (member) => {
     try {
-        await guildGuestRoles.executeGuest(member);
+        await guildRoleAssignment.addGuest(member);
     } catch (error) {
-        console.error('Error handling guildGuestRoles:', error);
+        console.error('Error handling guildRoleAssignment:', error);
     }
 });
 
 // Remove Guest role when Member role is assigned
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
     try {
-        await guildGuestRoles.executeMember(oldMember, newMember);
+        await guildRoleAssignment.removeGuest(oldMember, newMember);
     } catch (error) {
-        console.error('Error handling guildGuestRoles:', error);
+        console.error('Error handling guildRoleAssignment:', error);
     }
 });
 
