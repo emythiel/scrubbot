@@ -11,6 +11,9 @@ export async function addGuest(member: GuildMember): Promise<void> {
         return;
     }
 
+    // Exit if user already has Guest role
+    if (member.roles.cache.has(ROLES.guest)) return;
+
     try {
         await member.roles.add(ROLES.guest);
         console.log(`Assigned Guest role to ${member.user.tag} on join.`);
@@ -40,7 +43,7 @@ export async function removeGuest(
     // Only act if Member role was added
     if (!addedRoles.has(ROLES.member)) return;
 
-    // Only Guest if user has it
+    // Only remove Guest if user has it
     if (!newMember.roles.cache.has(ROLES.guest)) return;
 
     try {
