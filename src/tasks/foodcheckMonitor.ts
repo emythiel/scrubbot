@@ -78,9 +78,6 @@ export async function runFoodCheck(client: Client): Promise<string> {
 
 /**
  * Start food check monitor.
- *
- * Uses setTimeout to fire precisely at the scheduled time, then setInterval
- * to repeat every week from that point.
  */
 export function startFoodCheckMonitor(client: Client) {
     if (!FOODCHECK_CONFIG.channelId) {
