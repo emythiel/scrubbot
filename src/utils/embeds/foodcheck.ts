@@ -82,8 +82,7 @@ export function createFoodStatusEmbed(
  * Yellow (0xFEE75C) — item is low but not empty
  */
 export function createFoodAlertEmbeds(
-    lowItems: FoodWithCount[],
-    threshold: number
+    lowItems: FoodWithCount[]
 ): EmbedBuilder[] {
     return lowItems.map(({ food, count }) =>
         new EmbedBuilder()
@@ -92,9 +91,8 @@ export function createFoodAlertEmbeds(
             .setThumbnail(food.icon)
             .setColor(count === 0 ? 0xED4245 : 0xFEE75C)
             .addFields(
-                { name: 'In Storage', value: `${count}`, inline: true },
-                { name: 'Threshold', value: `${threshold}`, inline: true },
-                { name: 'Crafting', value: `[GW2 Efficiency](${food.gw2_efficiency_url})`, inline: true },
+                { name: 'In Storage', value: `${count}`, inline: false },
+                { name: 'Crafting', value: `[GW2 Efficiency](${food.gw2_efficiency_url})`, inline: false },
             )
     );
 }

@@ -60,7 +60,7 @@ export async function runFoodCheck(client: Client): Promise<string> {
 
         await channel.send({
             content: `${ping}⚠️ **${lowItems.length} food ${itemWord} running low in the guild storage!**`,
-            embeds: createFoodAlertEmbeds(lowItems, threshold)
+            embeds: createFoodAlertEmbeds(lowItems)
         });
 
         console.log(`[FoodCheck] Alert posted for ${lowItems.length} item(s).`);
