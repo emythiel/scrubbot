@@ -1,6 +1,6 @@
 import { EmbedBuilder, User } from 'discord.js';
-import type { Giveaway } from '../types/giveaway.js';
-import { formatDiscordTimestamp } from './timeParser.js';
+import type { Giveaway, GiveawayWinner } from '../../types/giveaway.js';
+import { formatDiscordTimestamp } from '../timeParser.js';
 
 /**
  * Create an embed for an active giveaway
@@ -11,7 +11,7 @@ export function createGiveawayEmbed(
     entryCount: number
 ): EmbedBuilder {
     const embed = new EmbedBuilder()
-        .setTitle(`🎉 ${giveaway.prize}`)
+        .setTitle(`${giveaway.prize}`)
         .setColor(0x5865F2)
         .setFooter({ text: `Giveaway` });
 
@@ -27,7 +27,8 @@ export function createGiveawayEmbed(
     embed.addFields(
         { name: 'Ends', value: `${endsRelative} (${endsAbsolute})`, inline: false },
         { name: 'Hosted by', value: host.toString(), inline: true },
-        { name: 'Entries', value: entryCount.toString(), inline: true }
+        { name: 'Entries', value: entryCount.toString(), inline: true },
+        { name: 'Winners', value: giveaway.winner_count.toString(), inline: true }
     );
 
     return embed;
@@ -40,7 +41,7 @@ export function createEndedGiveawayEmbed(
     giveaway: Giveaway,
     host: User,
     entryCount: number,
-    winners: string[]
+    winners: GiveawayWinner[]
 ): EmbedBuilder {
     const embed = new EmbedBuilder()
         .setTitle(`🎉 ${giveaway.prize}`)
@@ -64,10 +65,13 @@ export function createEndedGiveawayEmbed(
 
     // Add winners
     if (winners.length > 0) {
-        const winnerMentions = winners.map(userId => `<@${userId}>`).join(', ');
+        const winnerDisplay = winners.map(w =>
+            `<@${w.user_id}> ${w.claimed ? '✅' : '⏳'}`
+        ).join('\n');
+
         embed.addFields({
             name: `Winner${winners.length > 1 ? 's' : ''}`,
-            value: winnerMentions,
+            value: winnerDisplay,
             inline: false
         });
     } else {

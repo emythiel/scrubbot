@@ -1,3 +1,5 @@
+import pkg from '../package.json' with { type: 'json' };
+
 /**
  * Centralized bot configuration
  * All server-specific settings are defined here
@@ -36,6 +38,12 @@ export const CHANNELS = {
 
     /** General/main channel */
     general: process.env.CHANNEL_ID_GENERAL || null,
+
+    /** Admin channel */
+    admin: process.env.CHANNEL_ID_ADMIN || null,
+
+    /** Mentor channel */
+    mentor: process.env.CHANNEL_ID_MENTOR || null,
 } as const;
 
 
@@ -48,6 +56,7 @@ export const ROLES = {
     member: process.env.ROLE_ID_MEMBER || null,
     guest: process.env.ROLE_ID_GUEST || null,
     giveaway: process.env.ROLE_ID_GIVEAWAY || null,
+    foodcheck: process.env.ROLE_ID_FOODCHECK || null,
 } as const;
 
 
@@ -79,14 +88,25 @@ export const GW2_CONFIG = {
  * Giveaway configuration
  */
 export const GIVEAWAY_CONFIG = {
-    /** How often to check for expired giveaways (in milliseconds) */
-    checkInterval: 30 * 1000,  // 30 seconds
+    /** Cron schedule - how often to check */
+    schedule: '*/1 * * * *',
+} as const;
 
-    /** Default giveaway duration if not specified */
-    defaultDuration: 7 * 24 * 60 * 60,  // 7 days in seconds
+/**
+ * Foodcheck configuration
+ */
+export const FOODCHECK_CONFIG = {
+    /** Channel to post low-stock alerts to. Must be set for monitor to run */
+    channelId: CHANNELS.mentor || null,
 
-    /** Default number of winners */
-    defaultWinnerCount: 1,
+    /** Role ID to ping in alert messages */
+    roleId: ROLES.foodcheck || null,
+
+    /** Item threshold for automated check */
+    threshold: parseInt(process.env.FOODCHECK_THRESHOLD || '15', 10),
+
+    /** Cron schedule - how often to check */
+    schedule: '0 20 * * 0'
 } as const;
 
 
@@ -111,6 +131,8 @@ export function isRoleConfigured(role: keyof typeof ROLES): boolean {
  */
 export function logConfigStatus(): void {
     console.log('\n=== Bot Configuration ===');
+    console.log(`Version: ${pkg.version}\n`)
+
     console.log(`Server ID: ${BOT_CONFIG.guildId}`);
     console.log(`Client ID: ${BOT_CONFIG.clientId}`);
     console.log(`Database: ${DATABASE.path}`);

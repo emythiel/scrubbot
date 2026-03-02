@@ -1,10 +1,13 @@
 import { Client, Events, GatewayIntentBits, MessageFlags, REST, Routes } from 'discord.js';
 import { initializeDatabase } from './database/schema.js';
-import { setDatabase } from './database/giveaways.js';
+import { setDatabase as setGiveawayDb } from './database/giveaways.js';
+import { setDatabase as setFoodcheckDb } from './database/foodcheck.js';
 import { BOT_CONFIG, logConfigStatus } from './config.js';
 import * as readyEvent from './events/ready.js';
 import * as interactionCreateEvent from './events/interactionCreate.js';
+import * as guildRoleAssignment from './events/guildRoleAssignment.js';
 import * as giveawayCommand from './commands/giveaway.js';
+import * as foodcheckCommand from './commands/foodcheck.js';
 
 // Validate configuration on startup
 console.log('Validating configuration...');
@@ -13,17 +16,23 @@ logConfigStatus();
 // Initialize database
 console.log('Initializing database...');
 const db = initializeDatabase();
-setDatabase(db);
+setGiveawayDb(db);
+setFoodcheckDb(db);
 
 // Create Discord client
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages
     ]
 });
 
-// Register event handlers
+
+// ---------------------------------------------------------------------------
+// Event Handler Registration
+// ---------------------------------------------------------------------------
+
 client.once(Events.ClientReady, (readyClient) => {
     readyEvent.execute(readyClient);
 });
@@ -51,10 +60,38 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
-// Register slash commands
+
+// ---------------------------------------------------------------------------
+// Guest Role Assignment
+// ---------------------------------------------------------------------------
+
+// Assign guest role when a user joins
+client.on(Events.GuildMemberAdd, async (member) => {
+    try {
+        await guildRoleAssignment.addGuest(member);
+    } catch (error) {
+        console.error('Error handling guildRoleAssignment:', error);
+    }
+});
+
+// Remove Guest role when Member role is assigned
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+    try {
+        await guildRoleAssignment.removeGuest(oldMember, newMember);
+    } catch (error) {
+        console.error('Error handling guildRoleAssignment:', error);
+    }
+});
+
+
+// ---------------------------------------------------------------------------
+// Slash Commands Registration
+// ---------------------------------------------------------------------------
+
 async function registerCommands() {
     const commands = [
-        giveawayCommand.data.toJSON()
+        giveawayCommand.data.toJSON(),
+        foodcheckCommand.data.toJSON()
     ];
 
     const rest = new REST().setToken(BOT_CONFIG.token);
@@ -75,7 +112,11 @@ async function registerCommands() {
     }
 }
 
+
+// ---------------------------------------------------------------------------
 // Start the bot
+// ---------------------------------------------------------------------------
+
 async function start() {
     try {
         await registerCommands();

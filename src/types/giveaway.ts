@@ -13,5 +13,15 @@ export interface Giveaway {
     ended: boolean;             // If the giveaway has ended (0|1)
     winner_count: number;       // Amount of winners
     entries: string;            // JSON array of user IDs: ["123", "456", "789"]
-    winners: string;            // JSON array of user IDs: ["123", "789"]
+    winners: string;            // JSON array of GiveawayWinner objects
+}
+
+/**
+ * Individual winner with claim status and gw2 id
+ * Stored as JSON in winners column
+ */
+export interface GiveawayWinner {
+    user_id: string,            // Discord user ID
+    claimed: boolean;           // Whether user has claimed their prize or not
+    gw2_id: string | null;      // The users Guild Wars 2 ID
 }

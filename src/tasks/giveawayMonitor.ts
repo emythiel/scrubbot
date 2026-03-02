@@ -1,7 +1,11 @@
+import cron from 'node-cron';
 import type { Client, TextChannel } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import type { GiveawayWinner } from '../types/giveaway.js';
 import * as db from '../database/giveaways.js';
-import { createEndedGiveawayEmbed } from '../utils/giveawayEmbeds.js';
-import { selectRandomWinners } from '../utils/giveawayHelpers.js';
+import { createEndedGiveawayEmbed } from '../utils/embeds/giveaway.js';
+import { selectRandomWinners } from '../utils/helpers.js';
+import { GIVEAWAY_CONFIG } from '../config.js';
 
 /**
  * End a giveaway and select winners
@@ -11,9 +15,16 @@ async function endGiveaway(client: Client, messageId: string) {
     if (!giveaway) return;
 
     const entries = db.getEntries(messageId);
-    const winnerIds = selectRandomWinners(entries, giveaway.winner_count);
+    const winnerUserIds = selectRandomWinners(entries, giveaway.winner_count);
 
-    db.addWinners(messageId, winnerIds);
+    // Create winner obejcts with claim status
+    const winners: GiveawayWinner[] = winnerUserIds.map(userId => ({
+        user_id: userId,
+        claimed: false,
+        gw2_id: null
+    }));
+
+    db.addWinners(messageId, winners);
     db.markGiveawayEnded(messageId);
 
     try {
@@ -21,20 +32,30 @@ async function endGiveaway(client: Client, messageId: string) {
         const message = await channel.messages.fetch(giveaway.message_id);
         const host = await client.users.fetch(giveaway.hosted_by);
 
-        const endedEmbed = createEndedGiveawayEmbed(giveaway, host, entries.length, winnerIds);
+        const endedEmbed = createEndedGiveawayEmbed(giveaway, host, entries.length, winners);
 
         // Edit original message: Swap embed and remove enter/exit button
         await message.edit({ embeds: [endedEmbed], components: [] });
 
         // Send a separate announcement mentioning the winners
-        const winnerWord = winnerIds.length === 1 ? 'Winner' : 'Winners';
-        const winnerMentions = winnerIds.map(userId => `<@${userId}>`).join(', ');
+        const winnerWord = winners.length === 1 ? 'Winner' : 'Winners';
+        const winnerMentions = winners.map(w => `<@${w.user_id}>`).join(', ');
 
-        await channel.send(
-            winnerIds.length > 0
-                ? `🎉 **Giveaway Ended!**\n\n**${winnerWord}**: ${winnerMentions}\n**Prize**: ${giveaway.prize}\n\nCongratulations!`
-                : `🎉 **Giveaway Ended!**\n\nNo valid entries were received.\n**Prize**: ${giveaway.prize}`
-        );
+        if (winners.length > 0) {
+            const claimButton = new ButtonBuilder()
+                .setCustomId(`giveaway_claim_${messageId}`)
+                .setLabel('🎁 Claim Prize')
+                .setStyle(ButtonStyle.Success);
+
+            await channel.send({
+                content: `🎉 **Giveaway Ended!**\n\n**${winnerWord}**: ${winnerMentions}\n**Prize**: ${giveaway.prize}\n\nWinners: Click below to claim your prize!`,
+                components: [new ActionRowBuilder<ButtonBuilder>().addComponents(claimButton)]
+            });
+        } else {
+            await channel.send({
+                content: `🎉 **Giveaway Ended!**\n\nNo valid entries were received.\n**Prize**: ${giveaway.prize}`
+            })
+        }
     } catch (error) {
         console.error(`Error ending giveaway ${messageId}:`, error);
     }
@@ -56,11 +77,13 @@ async function checkExpiredGiveaways(client: Client) {
  * Checks for expired giveaways every 30 seconds
  */
 export function startGiveawayMonitor(client: Client) {
-    console.log('Starting giveaway monitor...');
+    console.log('[Giveaway] Monitor started. Checking every minute.');
 
-    // Check immediately on startup
-    checkExpiredGiveaways(client);
+    // Run on startup to catch any giveaways that expired while bot was offline
+    checkExpiredGiveaways(client)
 
-    // Check every 30 seconds
-    setInterval(() => checkExpiredGiveaways(client), 30 * 1000);
+    // Run cron job schedule
+    cron.schedule(GIVEAWAY_CONFIG.schedule, () => {
+        checkExpiredGiveaways(client);
+    });
 }
