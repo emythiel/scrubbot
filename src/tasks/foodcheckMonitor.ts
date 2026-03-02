@@ -55,7 +55,7 @@ export async function runFoodCheck(client: Client): Promise<string> {
 
     try {
         const channel = await client.channels.fetch(FOODCHECK_CONFIG.channelId) as TextChannel;
-        const ping = FOODCHECK_CONFIG.roleId ? `<@&${FOODCHECK_CONFIG.roleId}> ` : '';
+        const ping = FOODCHECK_CONFIG.roleId ? `<@&${FOODCHECK_CONFIG.roleId}>\n` : '';
         const itemWord = lowItems.length === 1 ? 'item is' : 'items are';
 
         await channel.send({
