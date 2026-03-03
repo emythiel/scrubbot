@@ -554,7 +554,7 @@ async function handleEnd(interaction: ChatInputCommandInteraction) {
                 .setStyle(ButtonStyle.Success);
 
             await channel.send({
-                content: `🎉 **Giveaway Ended!**\n\n**${winnerWord}**: ${winnerMentions}\n**Prize**: ${giveaway.prize}\n\nWinners: Click below to claim your prize!`,
+                content: `🎉 **Giveaway Ended!**\n\n**${winnerWord}**: ${winnerMentions}\n**Prize**: ${giveaway.prize}\n\nWinners: Claim your prize below within 72 hours!`,
                 components: [new ActionRowBuilder<ButtonBuilder>().addComponents(claimButton)]
             });
         } else {
