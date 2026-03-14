@@ -21,7 +21,7 @@ import type { GiveawayWinner } from '../types/giveaway.js';
 import { parseDuration, getUnixTimestamp } from '../utils/timeParser.js';
 import { createCancelledGiveawayEmbed, createEndedGiveawayEmbed, createGiveawayEmbed } from '../utils/embeds/giveaway.js';
 import { selectRandomWinners, validateGW2Id } from '../utils/helpers.js';
-import { CHANNELS, ROLES } from '../config.js';
+import { GIVEAWAY_CONFIG as CONF } from '../config.js';
 import * as db from '../database/giveaways.js';
 
 
@@ -255,12 +255,12 @@ async function handleCreateModalSubmit(interaction: ModalSubmitInteraction) {
         });
 
         // Send announcement if provided
-        if (announcementText && CHANNELS.announcements) {
+        if (announcementText && CONF.announcementChannel) {
             try {
-                const announcementChannel = await interaction.client.channels.fetch(CHANNELS.announcements) as TextChannel;
+                const announcementChannel = await interaction.client.channels.fetch(CONF.announcementChannel) as TextChannel;
                 if (announcementChannel?.type === ChannelType.GuildText) {
                     await announcementChannel.send({
-                        content: `<@&${ROLES.giveaway}>\n\n${announcementText}\n\nJump to giveaway:\n${giveawayMessage.url}`
+                        content: `<@&${CONF.pingRole}>\n\n${announcementText}\n\nJump to giveaway:\n${giveawayMessage.url}`
                     });
                 }
             } catch (error) {

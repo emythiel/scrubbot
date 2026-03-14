@@ -5,7 +5,7 @@
  * Usage: npm run build && node dist/test-config.js
  */
 
-import { BOT_CONFIG, CHANNELS, ROLES, DATABASE, GW2_CONFIG, logConfigStatus } from './config.js';
+import { BOT_CONFIG, DATABASE, GW2_CONFIG, logConfigStatus } from './config.js';
 
 console.log('🔍 Testing bot configuration...\n');
 
@@ -35,23 +35,12 @@ if (BOT_CONFIG.guildId) {
     hasErrors = true;
 }
 
-console.log('\n=== Optional Configuration ===');
-
-// Check announcement channel
-if (CHANNELS.announcements) {
-    console.log('✅ Announcement channel configured');
-    console.log(`   Channel ID: ${CHANNELS.announcements}`);
-} else {
-    console.log('ℹ️  Announcement channel not configured');
-    console.log('   Giveaway announcements will be disabled');
-}
-
 // Check GW2 API
 if (GW2_CONFIG.apiKey && GW2_CONFIG.guildId) {
     console.log('✅ GW2 API configured');
 } else {
     console.log('ℹ️  GW2 API not configured');
-    console.log('   User verification features will be unavailable');
+    console.log('   Some features will be unavailable');
 }
 
 // Check database

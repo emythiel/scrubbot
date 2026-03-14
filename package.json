@@ -23,7 +23,8 @@
   "dependencies": {
     "better-sqlite3": "^12.6.2",
     "discord.js": "^14.25.1",
-    "node-cron": "^4.2.1"
+    "node-cron": "^4.2.1",
+    "smol-toml": "^1.6.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

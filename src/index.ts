@@ -6,6 +6,7 @@ import { BOT_CONFIG, logConfigStatus } from './config.js';
 import * as readyEvent from './events/ready.js';
 import * as interactionCreateEvent from './events/interactionCreate.js';
 import * as guildRoleAssignment from './events/guildRoleAssignment.js';
+import * as configCommand from './commands/config.js';
 import * as giveawayCommand from './commands/giveaway.js';
 import * as foodcheckCommand from './commands/foodcheck.js';
 
@@ -90,6 +91,7 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
 
 async function registerCommands() {
     const commands = [
+        configCommand.data.toJSON(),
         giveawayCommand.data.toJSON(),
         foodcheckCommand.data.toJSON()
     ];

@@ -22,7 +22,7 @@ export async function runFoodCheck(client: Client): Promise<string> {
         return 'Skipped: GW2 credentials not configured.';
     }
 
-    if (!FOODCHECK_CONFIG.channelId) {
+    if (!FOODCHECK_CONFIG.channel) {
         console.warn('[FoodCheck] Skipping check — alert channel not configured.');
         return 'Skipped: Alert channel not configured.';
     }
@@ -54,8 +54,8 @@ export async function runFoodCheck(client: Client): Promise<string> {
     }
 
     try {
-        const channel = await client.channels.fetch(FOODCHECK_CONFIG.channelId) as TextChannel;
-        const ping = FOODCHECK_CONFIG.roleId ? `<@&${FOODCHECK_CONFIG.roleId}>\n` : '';
+        const channel = await client.channels.fetch(FOODCHECK_CONFIG.channel) as TextChannel;
+        const ping = FOODCHECK_CONFIG.pingRole ? `<@&${FOODCHECK_CONFIG.pingRole}>\n` : '';
         const itemWord = lowItems.length === 1 ? 'item is' : 'items are';
 
         await channel.send({
@@ -80,7 +80,7 @@ export async function runFoodCheck(client: Client): Promise<string> {
  * Start food check monitor.
  */
 export function startFoodCheckMonitor(client: Client) {
-    if (!FOODCHECK_CONFIG.channelId) {
+    if (!FOODCHECK_CONFIG.channel) {
         console.log('[FoodCheck] Monitor not started — FOODCHECK_CHANNEL_ID is not set.');
         return;
     }

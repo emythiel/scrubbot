@@ -5,6 +5,7 @@ import type {
     ButtonInteraction,
     StringSelectMenuInteraction,
 } from 'discord.js';
+import * as configCommand from '../commands/config.js';
 import * as giveawayCommand from '../commands/giveaway.js';
 import * as foodcheckCommand from '../commands/foodcheck.js';
 
@@ -28,6 +29,7 @@ interface CommandModule {
 // ---------------------------------------------------------------------------
 
 const commands = new Map<string, CommandModule>([
+    ['config', configCommand],
     ['giveaway',   giveawayCommand],
     ['foodcheck',  foodcheckCommand]
 ]);

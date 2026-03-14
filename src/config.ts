@@ -1,8 +1,10 @@
 import pkg from '../package.json' with { type: 'json' };
+import { getConfig } from './configFile.js';
 
 /**
- * Centralized bot configuration
- * All server-specific settings are defined here
+ * Bot configuration
+ *
+ * Environment variables: DISCORD_TOKEN, CLIENT_ID, GUILD_ID, GW2_API_KEY, GW2_GUILD_ID, DB_PATH, CONFIG_PATH
  */
 
 const requiredEnvVars = ['DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID'] as const;
@@ -12,7 +14,6 @@ for (const varName of requiredEnvVars) {
         throw new Error(`Missing required environment variable: ${varName}`);
     }
 }
-
 
 /**
  * Bot authentication and identity
@@ -28,37 +29,16 @@ export const BOT_CONFIG = {
     guildId: process.env.GUILD_ID!,
 } as const;
 
-
 /**
- * Channel IDs for various of bot functions
+ * Guild Wars 2 API configuration
  */
-export const CHANNELS = {
-    /** Announcement channel */
-    announcements: process.env.CHANNEL_ID_ANNOUNCEMENT || null,
+export const GW2_CONFIG = {
+    /** GW2 Player API Key (Guild Admin) */
+    apiKey: process.env.GW2_API_KEY || null,
 
-    /** General/main channel */
-    general: process.env.CHANNEL_ID_GENERAL || null,
-
-    /** Admin channel */
-    admin: process.env.CHANNEL_ID_ADMIN || null,
-
-    /** Mentor channel */
-    mentor: process.env.CHANNEL_ID_MENTOR || null,
+    /** GW2 Guild ID */
+    guildId: process.env.GW2_GUILD_ID || null,
 } as const;
-
-
-/**
- * Role IDs for permissions and user management
- */
-export const ROLES = {
-    admin: process.env.ROLE_ID_ADMIN || null,
-    mentor: process.env.ROLE_ID_MENTOR || null,
-    member: process.env.ROLE_ID_MEMBER || null,
-    guest: process.env.ROLE_ID_GUEST || null,
-    giveaway: process.env.ROLE_ID_GIVEAWAY || null,
-    foodcheck: process.env.ROLE_ID_FOODCHECK || null,
-} as const;
-
 
 /**
  * Database configuration
@@ -72,84 +52,89 @@ export const DATABASE = {
 } as const;
 
 
+// ---------------------------------------------------------------------------
+// config.toml Configuration
+// ---------------------------------------------------------------------------
+
 /**
- * Guild Wars 2 API configuration
+ * Membership / auto role assignment configuration
  */
-export const GW2_CONFIG = {
-    /** GW2 Player API Key (Guild Admin) */
-    apiKey: process.env.GW2_API_KEY || null,
+export const MEMBERSHIP_CONFIG = {
+    /** Role assigned to verified members */
+    get memberRole() { return getConfig().membership.member_role || null; },
 
-    /** GW2 Guild ID */
-    guildId: process.env.GW2_GUILD_ID || null,
-} as const;
-
+    /** Role auto-assigned to new users, remved when memberRole is assigned */
+    get guestRole() { return getConfig().membership.guest_role || null; }
+};
 
 /**
  * Giveaway configuration
  */
 export const GIVEAWAY_CONFIG = {
-    /** Cron schedule - how often to check */
-    schedule: '*/1 * * * *',
-} as const;
+    /** Channel to post giveaway announcements in */
+    get announcementChannel() { return getConfig().giveaway.announcement_channel || null; },
+
+    /** Role to ping in announcement message */
+    get pingRole() { return getConfig().giveaway.ping_role || null; },
+
+    /** Cron schedule for checking expired giveaways */
+    get schedule() { return getConfig().giveaway.schedule; }
+};
 
 /**
  * Foodcheck configuration
  */
 export const FOODCHECK_CONFIG = {
-    /** Channel to post low-stock alerts to. Must be set for monitor to run */
-    channelId: CHANNELS.mentor || null,
+    /** Channel to post low-stock messages in */
+    get channel() { return getConfig().foodcheck.channel || null; },
 
-    /** Role ID to ping in alert messages */
-    roleId: ROLES.foodcheck || null,
+    /** Role to ping in alert messages */
+    get pingRole() { return getConfig().foodcheck.ping_role || null; },
 
-    /** Item threshold for automated check */
-    threshold: parseInt(process.env.FOODCHECK_THRESHOLD || '15', 10),
+    /** Item count at or below which an alert is triggered */
+    get threshold() { return getConfig().foodcheck.threshold; },
 
-    /** Cron schedule - how often to check */
-    schedule: '0 20 * * 0'
-} as const;
-
-
-/**
- * Helper function to check if a channel is configured
- */
-export function isChannelConfigured(channel: keyof typeof CHANNELS): boolean {
-    return CHANNELS[channel] !== null;
-}
+    /** Cron schedule for automated food check */
+    get schedule() { return getConfig().foodcheck.schedule;},
+};
 
 
-/**
- * Helper function to check if a role is configured
- */
-export function isRoleConfigured(role: keyof typeof ROLES): boolean {
-    return ROLES[role] !== null;
-}
-
+// ---------------------------------------------------------------------------
+// Debugging
+// ---------------------------------------------------------------------------
 
 /**
  * Display configuration status (for debugging)
  */
 export function logConfigStatus(): void {
-    console.log('\n=== Bot Configuration ===');
-    console.log(`Version: ${pkg.version}\n`)
+    const cfg = getConfig();
 
-    console.log(`Server ID: ${BOT_CONFIG.guildId}`);
-    console.log(`Client ID: ${BOT_CONFIG.clientId}`);
+    console.log('\n=== Bot Configuration ===');
+    console.log(`Version:  ${pkg.version}`);
     console.log(`Database: ${DATABASE.path}`);
 
-    console.log('\n--- Channels ---');
-    Object.entries(CHANNELS).forEach(([key, value]) => {
-        console.log(`${key}: ${value || 'Not configured'}`);
-    });
-
-    console.log('\n--- Roles ---');
-    Object.entries(ROLES).forEach(([key, value]) => {
-        console.log(`${key}: ${value || 'Not configured'}`);
-    });
+    console.log('\n--- Discord ---');
+    console.log(`Server ID: ${BOT_CONFIG.guildId}`);
+    console.log(`Client ID: ${BOT_CONFIG.clientId}`);
 
     console.log('\n--- GW2 API ---');
-    console.log(`API Key: ${GW2_CONFIG.apiKey ? 'Configured': 'Not configured'}`);
+    console.log(`API Key:  ${GW2_CONFIG.apiKey  ? 'Configured' : 'Not configured'}`);
     console.log(`Guild ID: ${GW2_CONFIG.guildId || 'Not configured'}`);
+
+    console.log('\n--- Membership (config.toml) ---');
+    console.log(`Member role: ${cfg.membership.member_role || 'Not configured'}`);
+    console.log(`Guest role:  ${cfg.membership.guest_role  || 'Not configured'}`);
+
+    console.log('\n--- Giveaway (config.toml) ---');
+    console.log(`Announcement channel: ${cfg.giveaway.announcement_channel || 'Not configured'}`);
+    console.log(`Ping role:            ${cfg.giveaway.ping_role            || 'Not configured'}`);
+    console.log(`Schedule:             ${cfg.giveaway.schedule}`);
+
+    console.log('\n--- Foodcheck (config.toml) ---');
+    console.log(`Channel:   ${cfg.foodcheck.channel    || 'Not configured'}`);
+    console.log(`Ping role: ${cfg.foodcheck.ping_role  || 'Not configured'}`);
+    console.log(`Threshold: ${cfg.foodcheck.threshold}`);
+    console.log(`Schedule:  ${cfg.foodcheck.schedule}`);
 
     console.log('========================\n');
 }
