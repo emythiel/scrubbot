@@ -257,8 +257,8 @@ async function handleCreateModalSubmit(interaction: ModalSubmitInteraction) {
         // Send announcement if provided
         if (announcementText && CONF.announcementChannel) {
             try {
-                const announcementChannel = await interaction.client.channels.fetch(CONF.announcementChannel) as TextChannel;
-                if (announcementChannel?.type === ChannelType.GuildText) {
+                const announcementChannel = await interaction.client.channels.fetch(CONF.announcementChannel);
+                if (announcementChannel?.isTextBased() && !announcementChannel.isDMBased()) {
                     await announcementChannel.send({
                         content: `<@&${CONF.pingRole}>\n\n${announcementText}\n\nJump to giveaway:\n${giveawayMessage.url}`
                     });
