@@ -1,46 +1,17 @@
-import type {
-    Interaction,
-    ChatInputCommandInteraction,
-    ModalSubmitInteraction,
-    ButtonInteraction,
-    StringSelectMenuInteraction,
-} from 'discord.js';
-import * as configCommand from '../commands/config.js';
-import * as giveawayCommand from '../commands/giveaway.js';
-import * as foodcheckCommand from '../commands/foodcheck.js';
-
+import type { Interaction } from 'discord.js';
+import { commands } from '../commands/registry.js';
+import type { CommandModule } from '../types/command.js';
 
 // ---------------------------------------------------------------------------
-// Command module interface
-// Each command file exports the handlers it supports. Optional handlers are
-// only called when an interaction's customId starts with the command's name.
+// Lookup maps / registratrion
 // ---------------------------------------------------------------------------
 
-interface CommandModule {
-    execute:            (interaction: ChatInputCommandInteraction) => Promise<void>;
-    handleModalSubmit?: (interaction: ModalSubmitInteraction) => Promise<void>;
-    handleButtonClick?: (interaction: ButtonInteraction) => Promise<void>;
-    handleSelectMenu?:  (interaction: StringSelectMenuInteraction) => Promise<void>;
-}
-
-
-// ---------------------------------------------------------------------------
-// Registry
-// ---------------------------------------------------------------------------
-
-const commands = new Map<string, CommandModule>([
-    ['config', configCommand],
-    ['giveaway',   giveawayCommand],
-    ['foodcheck',  foodcheckCommand]
-]);
-
-
-// ---------------------------------------------------------------------------
-// Prefix-based lookup for modal / button / select interactions
-// ---------------------------------------------------------------------------
+const commandMap = new Map<string, CommandModule>(
+    commands.map(cmd => [cmd.data.name, cmd])
+);
 
 function findCommandByPrefix(customId: string): CommandModule | undefined {
-    for (const [name, cmd] of commands) {
+    for (const [name, cmd] of commandMap) {
         if (customId.startsWith(`${name}_`)) return cmd;
     }
 }
@@ -52,7 +23,7 @@ function findCommandByPrefix(customId: string): CommandModule | undefined {
 
 export async function execute(interaction: Interaction) {
     if (interaction.isChatInputCommand()) {
-        await commands.get(interaction.commandName)?.execute(interaction);
+        await commandMap.get(interaction.commandName)?.execute(interaction);
 
     } else if (interaction.isModalSubmit()) {
         await findCommandByPrefix(interaction.customId)?.handleModalSubmit?.(interaction);

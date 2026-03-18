@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 import type { ChatInputCommandInteraction } from "discord.js";
-import { reloadConfig } from "../configFile.js";
+import { reloadConfig } from "../configLoader.js";
 
 
 // ---------------------------------------------------------------------------
@@ -17,7 +17,7 @@ export const data = new SlashCommandBuilder()
 
 
 // ---------------------------------------------------------------------------
-// Command definition
+// Subcommand dispatcher
 // ---------------------------------------------------------------------------
 
 // Subcommand registry: maps subcommand name -> handler function

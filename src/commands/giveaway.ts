@@ -20,9 +20,10 @@ import type {
 import type { GiveawayWinner } from '../types/giveaway.js';
 import { parseDuration, getUnixTimestamp } from '../utils/timeParser.js';
 import { createCancelledGiveawayEmbed, createEndedGiveawayEmbed, createGiveawayEmbed } from '../utils/embeds/giveaway.js';
-import { selectRandomWinners, validateGW2Id } from '../utils/helpers.js';
+import { validateGW2Id } from '../utils/helpers.js';
 import { GIVEAWAY_CONFIG as CONF } from '../config.js';
 import * as db from '../database/giveaways.js';
+import { buildClaimButton, endGiveaway, selectRandomWinners } from '../utils/giveawayActions.js';
 
 
 // ---------------------------------------------------------------------------
@@ -51,6 +52,7 @@ export const data = new SlashCommandBuilder()
         )
     )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+
 
 // ---------------------------------------------------------------------------
 // Subcommand dispatcher
@@ -199,12 +201,7 @@ async function handleCreateModalSubmit(interaction: ModalSubmitInteraction) {
         return;
     }
 
-    // interaction.channelId can be null for non-guild interactions, but since
-    // this command requires Administrator permission it will always be in a guild
-    // channel. We assert non-null here rather than propagating null through the types.
     const channelId = interaction.channelId!;
-
-    // Calculate end time as unix timestamp
     const now = getUnixTimestamp();
     const endsAt = now + duration;
 
@@ -221,8 +218,8 @@ async function handleCreateModalSubmit(interaction: ModalSubmitInteraction) {
                 ends_at:        endsAt,
                 ended:          false,
                 winner_count:   winnerCount,
-                entries:        '[]',
-                winners:        '[]'
+                entries:        [],
+                winners:        []
             },
             interaction.user,
             0
@@ -313,12 +310,14 @@ async function handleEnterButton(interaction: ButtonInteraction) {
     if (db.hasUserEntered(giveaway.message_id, userId)) {
         db.removeEntry(giveaway.message_id, userId);
         await interaction.reply({
-            content: '✅ You have left the giveaway.', flags: MessageFlags.Ephemeral
+            content: '✅ You have left the giveaway.',
+            flags: MessageFlags.Ephemeral
         });
     } else {
         db.addEntry(giveaway.message_id, userId);
         await interaction.reply({
-            content: '✅ You have entered the giveaway! Good luck! 🎉', flags: MessageFlags.Ephemeral
+            content: '✅ You have entered the giveaway! Good luck! 🎉',
+            flags: MessageFlags.Ephemeral
         });
     }
 
@@ -510,62 +509,8 @@ async function handleEnd(interaction: ChatInputCommandInteraction) {
     }
 
     try {
-        // Get entries and select winners
-        const entries = db.getEntries(messageId);
-        const winnerUserIds = selectRandomWinners(entries, giveaway.winner_count);
-
-        // Create winner objects with claim status
-        const winners: GiveawayWinner[] = winnerUserIds.map(userId => ({
-            user_id: userId,
-            claimed: false,
-            gw2_id: null
-        }));
-
-        // Update ends_at to current time (since giveaway ended early)
-        const now = getUnixTimestamp();
-        db.updateEndsAt(messageId, now);
-
-        // Add winners and mark as ended
-        db.addWinners(messageId, winners);
-        db.markGiveawayEnded(messageId);
-
-        // Fetch message and update it
-        const channel = await interaction.client.channels.fetch(giveaway.channel_id) as TextChannel;
-        const message = await channel.messages.fetch(messageId);
-        const host = await interaction.client.users.fetch(giveaway.hosted_by);
-
-        // Refetch giveaway to get updated ends_at
-        const updatedGiveaway = db.getGiveaway(messageId)!;
-        const endedEmbed = createEndedGiveawayEmbed(updatedGiveaway, host, entries.length, winners);
-
-        await message.edit({
-            embeds: [endedEmbed],
-            components: []
-        });
-
-        // Send winner announcement
-        const winnerWord = winners.length === 1 ? 'Winner' : 'Winners';
-        const winnerMentions = winners.map(w => `<@${w.user_id}>`).join(', ');
-
-        if (winners.length > 0) {
-            const claimButton = new ButtonBuilder()
-                .setCustomId(`giveaway_claim_${messageId}`)
-                .setLabel(`🎁 Claim Prize`)
-                .setStyle(ButtonStyle.Success);
-
-            await channel.send({
-                content: `🎉 **Giveaway Ended!**\n\n**${winnerWord}**: ${winnerMentions}\n**Prize**: ${giveaway.prize}\n\nWinners: Claim your prize below within 72 hours!`,
-                components: [new ActionRowBuilder<ButtonBuilder>().addComponents(claimButton)]
-            });
-        } else {
-            await channel.send({
-                content: `🎉 **Giveaway Ended!**\n\nNo valid entries were received.\n**Prize**: ${giveaway.prize}`
-            });
-        }
-
-        await interaction.editReply({
-            content: `✅ Giveaway ended successfully!`
-        });
+        await endGiveaway(interaction.client, messageId, getUnixTimestamp());
+        await interaction.editReply({ content: '✅ Giveaway ended successfully!' });
     } catch (error) {
         console.error('Error ending giveaway:', error);
         await interaction.editReply({
@@ -610,9 +555,7 @@ async function handleCancel(interaction: ChatInputCommandInteraction) {
         const channel = await interaction.client.channels.fetch(giveaway.channel_id) as TextChannel;
         const message = await channel.messages.fetch(messageId);
 
-        const cancelledEmbed = createCancelledGiveawayEmbed(giveaway);
-
-        await message.edit({ embeds: [cancelledEmbed], components: [] });
+        await message.edit({ embeds: [createCancelledGiveawayEmbed(giveaway)], components: [] });
 
         await interaction.editReply({
             content: `✅ Giveaway cancelled and removed from database.`
@@ -654,10 +597,8 @@ async function handleReroll(interaction: ChatInputCommandInteraction) {
     }
 
     try {
-        const currentWinners = db.getWinners(messageId);
-
-        // Get unclaimed winners
-        const unclaimedWinners = currentWinners.filter(W => !W.claimed);
+         // Get unclaimed winners
+        const unclaimedWinners = giveaway.winners.filter(w => !w.claimed);
 
         if (unclaimedWinners.length === 0) {
             await interaction.editReply({
@@ -666,10 +607,8 @@ async function handleReroll(interaction: ChatInputCommandInteraction) {
             return;
         }
 
-        const allEntries = db.getEntries(messageId);
-
-        const currentUnclaimedIds = unclaimedWinners.map(w => w.user_id);
-        const availableEntries = allEntries.filter(id => !currentUnclaimedIds.includes(id));
+        const unclaimedIds = new Set(unclaimedWinners.map(w => w.user_id));
+        const availableEntries = giveaway.entries.filter(id => !unclaimedIds.has(id));
 
         if (availableEntries.length === 0) {
             await interaction.editReply({
@@ -679,13 +618,8 @@ async function handleReroll(interaction: ChatInputCommandInteraction) {
         }
 
         const rerollCount = unclaimedWinners.length;
-        const newWinnerUserIds = selectRandomWinners(availableEntries, rerollCount);
-
-        const newWinners: GiveawayWinner[] = newWinnerUserIds.map(userId => ({
-            user_id: userId,
-            claimed: false,
-            gw2_id: null
-        }));
+        const newWinners: GiveawayWinner[] = selectRandomWinners(availableEntries, rerollCount)
+            .map(userId => ({ user_id: userId, claimed: false, gw2_id: null }));
 
         db.replaceUnclaimedWinners(messageId, newWinners);
 
@@ -706,14 +640,9 @@ async function handleReroll(interaction: ChatInputCommandInteraction) {
         const winnerWord = newWinners.length === 1 ? 'Winner' : 'Winners';
         const winnerMentions = newWinners.map(w => `<@${w.user_id}>`).join(', ');
 
-        const claimButton = new ButtonBuilder()
-            .setCustomId(`giveaway_claim_${messageId}`)
-            .setLabel('🎁 Claim Prize')
-            .setStyle(ButtonStyle.Success);
-
         await channel.send({
             content: `🔄 **Giveaway Rerolled!**\n\n**New ${winnerWord}**: ${winnerMentions}\n**Prize**: ${giveaway.prize}\n\nWinners: Click below to claim your prize!`,
-            components: [new ActionRowBuilder<ButtonBuilder>().addComponents(claimButton)]
+            components: [new ActionRowBuilder<ButtonBuilder>().addComponents(buildClaimButton(messageId))]
         });
 
         await interaction.editReply({

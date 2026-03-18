@@ -1,5 +1,5 @@
 import pkg from '../package.json' with { type: 'json' };
-import { getConfig } from './configFile.js';
+import { getConfig } from './configLoader.js';
 
 /**
  * Bot configuration
@@ -104,11 +104,20 @@ export const FOODCHECK_CONFIG = {
 // ---------------------------------------------------------------------------
 
 /**
+ * Go through a config section recursively and print each key-value pair.
+ */
+function logConfigSection(sectionName: string, section: Record<string, unknown>): void {
+    console.log(`\n--- ${sectionName} (config.toml) ---`);
+    for (const [key, value] of Object.entries(section)) {
+        const display = value === '' ? 'Not configured' : String(value);
+        console.log(`${key}: ${display}`);
+    }
+}
+
+/**
  * Display configuration status (for debugging)
  */
 export function logConfigStatus(): void {
-    const cfg = getConfig();
-
     console.log('\n=== Bot Configuration ===');
     console.log(`Version:  ${pkg.version}`);
     console.log(`Database: ${DATABASE.path}`);
@@ -121,20 +130,10 @@ export function logConfigStatus(): void {
     console.log(`API Key:  ${GW2_CONFIG.apiKey  ? 'Configured' : 'Not configured'}`);
     console.log(`Guild ID: ${GW2_CONFIG.guildId || 'Not configured'}`);
 
-    console.log('\n--- Membership (config.toml) ---');
-    console.log(`Member role: ${cfg.membership.member_role || 'Not configured'}`);
-    console.log(`Guest role:  ${cfg.membership.guest_role  || 'Not configured'}`);
-
-    console.log('\n--- Giveaway (config.toml) ---');
-    console.log(`Announcement channel: ${cfg.giveaway.announcement_channel || 'Not configured'}`);
-    console.log(`Ping role:            ${cfg.giveaway.ping_role            || 'Not configured'}`);
-    console.log(`Schedule:             ${cfg.giveaway.schedule}`);
-
-    console.log('\n--- Foodcheck (config.toml) ---');
-    console.log(`Channel:   ${cfg.foodcheck.channel    || 'Not configured'}`);
-    console.log(`Ping role: ${cfg.foodcheck.ping_role  || 'Not configured'}`);
-    console.log(`Threshold: ${cfg.foodcheck.threshold}`);
-    console.log(`Schedule:  ${cfg.foodcheck.schedule}`);
+    const cfg = getConfig() as unknown as Record<string, Record<string, unknown>>;
+    for (const [sectionName, section] of Object.entries(cfg)) {
+        logConfigSection(sectionName, section);
+    }
 
     console.log('========================\n');
 }

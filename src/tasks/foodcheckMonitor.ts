@@ -1,13 +1,13 @@
 import cron from 'node-cron';
 import type { Client, TextChannel } from 'discord.js';
 import * as db from '../database/foodcheck.js';
-import { fetchGuildStorage } from '../integrations/gw2-api.js';
+import { fetchFoodCounts } from '../utils/foodcheckActions.js';
 import { createFoodAlertEmbeds } from '../utils/embeds/foodcheck.js';
 import { FOODCHECK_CONFIG, GW2_CONFIG } from '../config.js';
 
 
 // ---------------------------------------------------------------------------
-// Core check logic (exported so a future /foodcheck test command can call it)
+// Core check logic
 // ---------------------------------------------------------------------------
 
 /**
@@ -32,22 +32,15 @@ export async function runFoodCheck(client: Client): Promise<string> {
         return 'No food items are being tracked.';
     }
 
-    let storage;
+    let allItems;
     try {
-        storage = await fetchGuildStorage(GW2_CONFIG.guildId, GW2_CONFIG.apiKey);
+        allItems = await fetchFoodCounts(foods);
     } catch (error) {
         console.error('[FoodCheck] Failed to fetch guild storage:', error);
         return `Error fetching guild storage: ${error instanceof Error ? error.message : String(error)}`;
     }
 
-    const storageMap = new Map<number, number>(storage.map(slot => [slot.id, slot.count]));
-    const threshold = FOODCHECK_CONFIG.threshold;
-
-    // Filter to only items below threshold
-    const lowItems = foods
-        .map(food => ({ food, count: storageMap.get(food.guild_upgrade_id) ?? 0 }))
-        .filter(({ count }) => count <= threshold );
-
+    const lowItems = allItems.filter(({ count }) => count <= FOODCHECK_CONFIG.threshold);
     if (lowItems.length === 0) {
         console.log('[FoodCheck] All items are above threshold. No alerts posted.');
         return 'All items are sufficiently stocked.';

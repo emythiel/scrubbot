@@ -3,12 +3,10 @@ import { initializeDatabase } from './database/schema.js';
 import { setDatabase as setGiveawayDb } from './database/giveaways.js';
 import { setDatabase as setFoodcheckDb } from './database/foodcheck.js';
 import { BOT_CONFIG, logConfigStatus } from './config.js';
+import { commands } from './commands/registry.js';
 import * as readyEvent from './events/ready.js';
 import * as interactionCreateEvent from './events/interactionCreate.js';
 import * as guildRoleAssignment from './events/guildRoleAssignment.js';
-import * as configCommand from './commands/config.js';
-import * as giveawayCommand from './commands/giveaway.js';
-import * as foodcheckCommand from './commands/foodcheck.js';
 
 // Validate configuration on startup
 console.log('Validating configuration...');
@@ -66,7 +64,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // Guest Role Assignment
 // ---------------------------------------------------------------------------
 
-// Assign guest role when a user joins
+// Assign Guest role when a user joins
 client.on(Events.GuildMemberAdd, async (member) => {
     try {
         await guildRoleAssignment.addGuest(member);
@@ -90,21 +88,15 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
 // ---------------------------------------------------------------------------
 
 async function registerCommands() {
-    const commands = [
-        configCommand.data.toJSON(),
-        giveawayCommand.data.toJSON(),
-        foodcheckCommand.data.toJSON()
-    ];
-
     const rest = new REST().setToken(BOT_CONFIG.token);
 
     try {
-        console.log('Registering slash commands for guild...');
+        console.log(`Registering ${commands.length} slash command(s) for guild...`);
 
         // Always register as guild commands for instant updates (single-server bot)
         await rest.put(
             Routes.applicationGuildCommands(BOT_CONFIG.clientId, BOT_CONFIG.guildId),
-            { body: commands }
+            { body: commands.map(c => c.data.toJSON()) }
         );
 
         console.log(`✅ Successfully registered ${commands.length} command(s)`);

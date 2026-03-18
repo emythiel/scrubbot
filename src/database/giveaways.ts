@@ -1,9 +1,29 @@
 import Database from 'better-sqlite3';
 import type { Giveaway, GiveawayWinner } from '../types/giveaway.js';
 
-// Represents the raw shape of a row as SQLite returns it
-// SQLite has no boolean type, so 'ended' comes back as 0 or 1
-type GiveawayRow = Omit<Giveaway, 'ended'> & { ended: number };
+/**
+ * Raw shape as SQLite returns it
+ * - `ended`    0 | 1
+ * - `entries`  JSON string
+ * - `winners`  JSON string
+ */
+type GiveawayRow = Omit<Giveaway, 'ended' | 'entries' | 'winners'> & {
+    ended: number;
+    entries: string;
+    winners: string;
+};
+
+/**
+ * Parse raw DB row to Giveaway type
+ */
+function rowToGiveaway(row: GiveawayRow): Giveaway {
+    return {
+        ...row,
+        ended: Boolean(row.ended),
+        entries: JSON.parse(row.entries) as string[],
+        winners: JSON.parse(row.winners) as GiveawayWinner[]
+    };
+}
 
 let db: Database.Database;
 
@@ -19,15 +39,13 @@ export function setDatabase(database: Database.Database) {
  * Entries and winners default to empty JSON arrays in schema.
  */
 export function createGiveaway(data: Omit<Giveaway, 'entries' | 'winners' | 'ended'>): void {
-    const stmt = db.prepare(`
+    db.prepare(`
         INSERT INTO giveaways (
             message_id, channel_id, prize, description, hosted_by,
             created_at, ends_at, winner_count
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
+    `).run(
         data.message_id,
         data.channel_id,
         data.prize,
@@ -43,12 +61,11 @@ export function createGiveaway(data: Omit<Giveaway, 'entries' | 'winners' | 'end
  * Fetch a giveaway by message ID
  */
 export function getGiveaway(messageId: string): Giveaway | null {
-    const stmt = db.prepare('SELECT * FROM giveaways WHERE message_id = ?');
-    const row = stmt.get(messageId) as GiveawayRow | undefined;
+    const row = db.prepare(
+        'SELECT * FROM giveaways WHERE message_id = ?'
+    ).get(messageId) as GiveawayRow | undefined;
 
-    if (!row) return null;
-
-    return { ...row, ended: Boolean(row.ended) };
+    return row ? rowToGiveaway(row) : null;
 }
 
 /**
@@ -61,15 +78,18 @@ export function getExpiredGiveaways(): Giveaway[] {
         WHERE ended = 0 AND ends_at <= ?
     `).all(now) as GiveawayRow[];
 
-    return rows.map(row => ({ ...row, ended: Boolean(row.ended) }));
+    return rows.map(rowToGiveaway);
 }
 
 /**
  * Mark a giveaway as ended
  */
 export function markGiveawayEnded(messageId: string): void {
-    db.prepare('UPDATE giveaways SET ended = 1 WHERE message_id = ?').run(messageId);
+    db.prepare(
+        'UPDATE giveaways SET ended = 1 WHERE message_id = ?'
+    ).run(messageId);
 }
+
 
 // ------------------------------
 // Entry management
@@ -94,23 +114,23 @@ export function addEntry(messageId: string, userId: string): boolean {
 
 /**
  * Remove a user from a giveaway's entries array
- * Returns true if removed, false if user wasn't entered
+ * Returns true if removed, false if not (eg user was not entered)
  */
 export function removeEntry(messageId: string, userId: string): boolean {
     const giveaway = getGiveaway(messageId);
     if (!giveaway) return false;
 
-    const entries: string[] = JSON.parse(giveaway.entries);
-    const index = entries.indexOf(userId);
+    const index = giveaway.entries.indexOf(userId);
     if (index === -1) return false;
 
-    entries.splice(index, 1);
+    const updated = [...giveaway.entries];
+    updated.splice(index, 1);
 
     db.prepare(`
         UPDATE giveaways
         SET entries = ?
         WHERE message_id = ?
-    `).run(JSON.stringify(entries), messageId);
+    `).run(JSON.stringify(updated), messageId);
 
     return true;
 }
@@ -119,7 +139,6 @@ export function removeEntry(messageId: string, userId: string): boolean {
  * Check if a user has entered a giveaway
  */
 export function hasUserEntered(messageId: string, userId: string): boolean {
-    // Use SQLite json_each to check if user exists in entries
     const result = db.prepare(`
         SELECT EXISTS(
             SELECT 1
@@ -148,11 +167,9 @@ export function getEntryCount(messageId: string): number {
  * Fetch all user IDs who entered a giveaway
  */
 export function getEntries(messageId: string): string[] {
-    const giveaway = getGiveaway(messageId);
-    if (!giveaway) return [];
-
-    return JSON.parse(giveaway.entries) as string[];
+    return getGiveaway(messageId)?.entries ?? [];
 }
+
 
 // ------------------------------
 // Winner management
@@ -173,18 +190,14 @@ export function addWinners(messageId: string, winners: GiveawayWinner[]): void {
  * Get winner user IDs for a giveaway
  */
 export function getWinners(messageId: string): GiveawayWinner[] {
-    const giveaway = getGiveaway(messageId);
-    if (!giveaway) return [];
-
-    return JSON.parse(giveaway.winners) as GiveawayWinner[];
+    return getGiveaway(messageId)?.winners ?? [];
 }
 
 /**
  * Get a specific winner's data
  */
 export function getWinnerData(messageId: string, userId: string): GiveawayWinner | null {
-    const winners = getWinners(messageId);
-    return winners.find(w => w.user_id === userId) || null;
+    return getWinners(messageId).find(w => w.user_id === userId) ?? null;
 }
 
 /**
@@ -194,19 +207,18 @@ export function claimPrize(messageId: string, userId: string, gw2Id: string): bo
     const giveaway = getGiveaway(messageId);
     if (!giveaway) return false;
 
-    const winners = getWinners(messageId);
-    const winner = winners.find(W => W.user_id === userId);
-
+    const winner = giveaway.winners.find(w => w.user_id === userId);
     if (!winner || winner.claimed) return false;
 
-    winner.claimed = true;
-    winner.gw2_id = gw2Id;
+    const updatedWinners = giveaway.winners.map(w =>
+        w.user_id === userId ? { ...w, claimed: true, gw2_id: gw2Id} : w
+    );
 
     db.prepare(`
         UPDATE giveaways
         SET winners = ?
         WHERE message_id = ?
-    `).run(JSON.stringify(winners), messageId);
+    `).run(JSON.stringify(updatedWinners), messageId);
 
     return true;
 }
@@ -219,13 +231,10 @@ export function replaceUnclaimedWinners(messageId: string, newWinners: GiveawayW
     const giveaway = getGiveaway(messageId);
     if (!giveaway) return;
 
-    const currentWinners = getWinners(messageId);
-
-    // Keep claimed winners
-    const claimedWinners = currentWinners.filter(w => w.claimed);
-
-    // Combine claimed winners with new unclaimed winners
-    const updatedWinners = [...claimedWinners, ...newWinners];
+    const updatedWinners = [
+        ...giveaway.winners.filter(w => w.claimed),
+        ...newWinners
+    ];
 
     db.prepare(`
         UPDATE giveaways
@@ -233,6 +242,7 @@ export function replaceUnclaimedWinners(messageId: string, newWinners: GiveawayW
         WHERE message_id = ?
     `).run(JSON.stringify(updatedWinners), messageId);
 }
+
 
 // ------------------------------
 // Modifying giveaways

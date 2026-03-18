@@ -16,9 +16,10 @@ import type {
     StringSelectMenuInteraction,
 } from 'discord.js';
 import * as db from '../database/foodcheck.js';
-import { fetchFoodItemData, fetchGuildStorage, fetchWikiUrls } from '../integrations/gw2-api.js';
+import { fetchFoodItemData, fetchWikiUrls } from '../integrations/gw2-api.js';
 import { createFoodAddedEmbed, createFoodStatusEmbed } from '../utils/embeds/foodcheck.js';
 import { FOODCHECK_CONFIG, GW2_CONFIG } from '../config.js';
+import { fetchFoodCounts } from '../utils/foodcheckActions.js';
 
 
 // ---------------------------------------------------------------------------
@@ -243,9 +244,9 @@ async function handleStatus(interaction: ChatInputCommandInteraction) {
         return;
     }
 
-    let storage;
+    let items;
     try {
-        storage = await fetchGuildStorage(GW2_CONFIG.guildId, GW2_CONFIG.apiKey);
+        items = await fetchFoodCounts(foods);
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         await interaction.editReply({
@@ -253,10 +254,6 @@ async function handleStatus(interaction: ChatInputCommandInteraction) {
         });
         return;
     }
-
-    // Quick lookup map: guild_upgrade_id -> count
-    const storageMap = new Map<number, number>(storage.map(slot => [slot.id, slot.count]));
-    const items = foods.map(food => ({ food, count: storageMap.get(food.guild_upgrade_id) ?? 0 }));
 
     await interaction.editReply({
         embeds: [createFoodStatusEmbed(items, FOODCHECK_CONFIG.threshold)]

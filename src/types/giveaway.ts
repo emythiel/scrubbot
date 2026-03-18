@@ -12,8 +12,8 @@ export interface Giveaway {
     ends_at: number;            // Unix timestamp (seconds)
     ended: boolean;             // If the giveaway has ended (0|1)
     winner_count: number;       // Amount of winners
-    entries: string;            // JSON array of user IDs: ["123", "456", "789"]
-    winners: string;            // JSON array of GiveawayWinner objects
+    entries: string[];          // JSON array of user IDs: ["123", "456", "789"]
+    winners: GiveawayWinner[];  // JSON array of GiveawayWinner objects
 }
 
 /**
