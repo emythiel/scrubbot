@@ -19,6 +19,14 @@ export interface BotConfig {
     };
 
     /**
+     * Guild management settings
+     */
+    guild: {
+        /** Channel to send guild invite requests to */
+        invite_request_channel: string;
+    }
+
+    /**
      * Giveaway settings
      */
     giveaway: {
@@ -68,6 +76,9 @@ const DEFAULTS: BotConfig = {
         membership: {
         member_role: '',
         guest_role: '',
+    },
+    guild: {
+        invite_request_channel: '',
     },
     giveaway: {
         announcement_channel: '',

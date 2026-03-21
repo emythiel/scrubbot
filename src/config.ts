@@ -68,6 +68,14 @@ export const MEMBERSHIP_CONFIG = {
 };
 
 /**
+ * Guild management configuration
+ */
+export const GUILD_CONFIG = {
+    /** Channel to post guild invite requests ot */
+    get inviteRequestChannel() { return getConfig().guild.invite_request_channel || null }
+}
+
+/**
  * Giveaway configuration
  */
 export const GIVEAWAY_CONFIG = {

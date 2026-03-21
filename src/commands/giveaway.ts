@@ -383,7 +383,7 @@ async function handleClaimButton(interaction: ButtonInteraction) {
 
     const gw2Label = new LabelBuilder()
         .setLabel('Guild Wars 2 Account Name')
-        .setDescription('Enter your Guild Wars 2 Account Name. Format: YourName.1234')
+        .setDescription('Enter your Guild Wars 2 Account Name. Format: example.1234')
         .setTextInputComponent(gw2Input);
 
     modal.setLabelComponents(gw2Label);
@@ -402,7 +402,7 @@ async function handleClaimModalSubmit(interaction: ModalSubmitInteraction) {
 
     if (!validateGW2Id(gw2Id)) {
         await interaction.editReply({
-            content: '❌ Invalid GW2 ID format. Must be like: YourName.1234'
+            content: '❌ Invalid GW2 ID format. Must be like: \`example.1234\`'
         });
         return;
     }
