@@ -4,9 +4,11 @@ import { setDatabase as setGiveawayDb } from './database/giveaways.js';
 import { setDatabase as setFoodcheckDb } from './database/foodcheck.js';
 import { BOT_CONFIG, logConfigStatus } from './config.js';
 import { commands } from './commands/registry.js';
-import * as readyEvent from './events/ready.js';
 import * as interactionCreateEvent from './events/interactionCreate.js';
 import * as guildRoleAssignment from './events/guildRoleAssignment.js';
+import { startGiveawayMonitor } from './tasks/giveawayMonitor.js';
+import { startFoodCheckMonitor } from './tasks/foodcheckMonitor.js';
+import { startHoneypotMonitor } from './tasks/honeypotMonitor.js';
 
 // Validate configuration on startup
 console.log('Validating configuration...');
@@ -23,7 +25,8 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
     ]
 });
 
@@ -33,7 +36,12 @@ const client = new Client({
 // ---------------------------------------------------------------------------
 
 client.once(Events.ClientReady, (readyClient) => {
-    readyEvent.execute(readyClient);
+    console.log(`Ready! Logged in as ${readyClient.user?.tag}`);
+
+    // Start background tasks
+    startGiveawayMonitor(readyClient);
+    startFoodCheckMonitor(readyClient);
+    startHoneypotMonitor(readyClient);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

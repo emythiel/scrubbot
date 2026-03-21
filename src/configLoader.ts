@@ -51,6 +51,24 @@ export interface BotConfig {
         /** Cron schedule for when to run the automated food check */
         schedule: string;
     };
+
+    /**
+     * Honeypot (spam catcher) settings
+     */
+    honeypot: {
+        /** Channel to watch for spam messages */
+        watch_channel: string;
+        /** Channel to post alert messages in */
+        alert_channel: string;
+        /** Whether to ban or "softban" (ban and unban) */
+        softban: boolean;
+        /** Role to timeout and wait for further action */
+        timeout_role: string;
+        /** Timeout duration (following timeParser.ts parseDuration format (max 28 days) */
+        timeout_duration: string;
+        /** Delete message hours (0, 1, 6, 12, 24) */
+        delete_message_hours: number;
+    }
 }
 
 /**
@@ -73,7 +91,7 @@ export interface ConfigLoadResult {
 // ---------------------------------------------------------------------------
 
 const DEFAULTS: BotConfig = {
-        membership: {
+    membership: {
         member_role: '',
         guest_role: '',
     },
@@ -90,6 +108,14 @@ const DEFAULTS: BotConfig = {
         ping_role: '',
         threshold: 15,
         schedule: '0 20 * * 0',  // Every Sundary, 20:00 UTC
+    },
+    honeypot: {
+        watch_channel: '',
+        alert_channel: '',
+        softban: true,
+        timeout_role: '',
+        timeout_duration: '1h',
+        delete_message_hours: 1,
     }
 }
 

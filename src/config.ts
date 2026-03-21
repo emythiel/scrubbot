@@ -64,7 +64,7 @@ export const MEMBERSHIP_CONFIG = {
     get memberRole() { return getConfig().membership.member_role || null; },
 
     /** Role auto-assigned to new users, remved when memberRole is assigned */
-    get guestRole() { return getConfig().membership.guest_role || null; }
+    get guestRole() { return getConfig().membership.guest_role || null; },
 };
 
 /**
@@ -72,7 +72,7 @@ export const MEMBERSHIP_CONFIG = {
  */
 export const GUILD_CONFIG = {
     /** Channel to post guild invite requests ot */
-    get inviteRequestChannel() { return getConfig().guild.invite_request_channel || null }
+    get inviteRequestChannel() { return getConfig().guild.invite_request_channel || null },
 }
 
 /**
@@ -86,7 +86,7 @@ export const GIVEAWAY_CONFIG = {
     get pingRole() { return getConfig().giveaway.ping_role || null; },
 
     /** Cron schedule for checking expired giveaways */
-    get schedule() { return getConfig().giveaway.schedule; }
+    get schedule() { return getConfig().giveaway.schedule; },
 };
 
 /**
@@ -105,6 +105,29 @@ export const FOODCHECK_CONFIG = {
     /** Cron schedule for automated food check */
     get schedule() { return getConfig().foodcheck.schedule;},
 };
+
+/**
+ * Honeypot configuration
+ */
+export const HONEYPOT_CONFIG = {
+    /** Channel to watch for messages */
+    get watchChannel() { return getConfig().honeypot.watch_channel || null; },
+
+    /** Channel to post alerts to */
+    get alertChannel() { return getConfig().honeypot.alert_channel || null; },
+
+    /** Whether to softban (ban/unban) or just fully ban */
+    get softban() { return getConfig().honeypot.softban; },
+
+    /** Role to apply a timeout to instead of immediately banning */
+    get timeoutRole() { return getConfig().honeypot.timeout_role || null; },
+
+    /** Timeout duration */
+    get timeoutDuration() { return getConfig().honeypot.timeout_duration; },
+
+    /** Message history deletion upon ban */
+    get deleteMessageHours() { return getConfig().honeypot.delete_message_hours; },
+}
 
 
 // ---------------------------------------------------------------------------
