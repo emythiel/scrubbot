@@ -29,7 +29,7 @@ export function createBanSuccessEmbed(member: GuildMember, softban: boolean, wat
         .setTitle(`🔨 User ${softban ? 'Softbanned': 'Banned'}`)
         .setColor(softban ? 0xFEE75C : 0xED4245)
         .setDescription(`User was ${softban ? 'softbanned' : 'banned'} for triggering the honeypot in ${watchCannel}.`)
-        //.addFields({ name: 'User', value: memberDisplay(member), inline: false })
+        .addFields({ name: 'User', value: `<@${member.user.id}>`, inline: false })
         .setTimestamp();
 }
 
@@ -43,7 +43,7 @@ export function createBanFailedEmbed(member: GuildMember, softban: boolean, watc
         .setColor(0xED4245)
         .setDescription(`User triggered the honeypot in ${watchChannel}, but I failed to ${softban ? 'softban' : 'ban'} them.`)
         .addFields(
-            //{ name: 'User', value: memberDisplay(member), inline: false },
+            { name: 'User', value: `<@${member.user.id}>`, inline: false },
             { name: 'Error', value: getErrorMessage(error), inline: false },
         )
         .setTimestamp();
@@ -65,7 +65,7 @@ export function createTimeoutSuccessEmbed(member: GuildMember, duration: string,
         .setColor(0xFEE75C)
         .setDescription(`User has been timed out for triggering the honeypot in ${watchChannel}`)
         .addFields(
-            //{ name: 'User', value: memberDisplay(member), inline: false },
+            { name: 'User', value: `<@${member.user.id}>`, inline: false },
             { name: 'Timeout Duration', value: duration, inline: true },
         )
         .setTimestamp();
@@ -81,7 +81,7 @@ export function createTimeoutFailedEmbed(member: GuildMember, watchChannel: stri
         .setColor(0xED4245)
         .setDescription(`User with the timeout role triggered the honeypot in ${watchChannel}, but could not be timed out. Please review manually.`)
         .addFields(
-            //{ name: 'User', value: memberDisplay(member), inline: false },
+            { name: 'User', value: `<@${member.user.id}>`, inline: false },
             { name: 'Error', value: getErrorMessage(error), inline: false },
         )
         .setTimestamp();
