@@ -25,10 +25,11 @@ function memberDisplay(member: GuildMember): string {
  */
 export function createBanSuccessEmbed(member: GuildMember, softban: boolean, watchCannel: string): EmbedBuilder {
     return new EmbedBuilder()
+        .setAuthor({ name: member.user.tag, iconURL: member.user.displayAvatarURL() })
         .setTitle(`🔨 User ${softban ? 'Softbanned': 'Banned'}`)
         .setColor(softban ? 0xFEE75C : 0xED4245)
         .setDescription(`User was ${softban ? 'softbanned' : 'banned'} for triggering the honeypot in ${watchCannel}.`)
-        .addFields({ name: 'User', value: memberDisplay(member), inline: false })
+        //.addFields({ name: 'User', value: memberDisplay(member), inline: false })
         .setTimestamp();
 }
 
@@ -37,11 +38,12 @@ export function createBanSuccessEmbed(member: GuildMember, softban: boolean, wat
  */
 export function createBanFailedEmbed(member: GuildMember, softban: boolean, watchChannel: string, error: unknown): EmbedBuilder {
     return new EmbedBuilder()
+        .setAuthor({ name: member.user.tag, iconURL: member.user.displayAvatarURL() })
         .setTitle(`⚠️ Failed to ${softban ? 'softban' : 'ban'} user`)
         .setColor(0xED4245)
         .setDescription(`User triggered the honeypot in ${watchChannel}, but I failed to ${softban ? 'softban' : 'ban'} them.`)
         .addFields(
-            { name: 'User', value: memberDisplay(member), inline: false },
+            //{ name: 'User', value: memberDisplay(member), inline: false },
             { name: 'Error', value: getErrorMessage(error), inline: false },
         )
         .setTimestamp();
@@ -58,11 +60,12 @@ export function createBanFailedEmbed(member: GuildMember, softban: boolean, watc
  */
 export function createTimeoutSuccessEmbed(member: GuildMember, duration: string, watchChannel: string): EmbedBuilder {
     return new EmbedBuilder()
+        .setAuthor({ name: member.user.tag, iconURL: member.user.displayAvatarURL() })
         .setTitle('⏱️ User Timed Out - Action Required')
         .setColor(0xFEE75C)
         .setDescription(`User has been timed out for triggering the honeypot in ${watchChannel}`)
         .addFields(
-            { name: 'User', value: memberDisplay(member), inline: false },
+            //{ name: 'User', value: memberDisplay(member), inline: false },
             { name: 'Timeout Duration', value: duration, inline: true },
         )
         .setTimestamp();
@@ -73,11 +76,12 @@ export function createTimeoutSuccessEmbed(member: GuildMember, duration: string,
  */
 export function createTimeoutFailedEmbed(member: GuildMember, watchChannel: string, error: unknown): EmbedBuilder {
     return new EmbedBuilder()
+        .setAuthor({ name: member.user.tag, iconURL: member.user.displayAvatarURL() })
         .setTitle('⚠️ Failed to timeout user - Manual action required')
         .setColor(0xED4245)
         .setDescription(`User with the timeout role triggered the honeypot in ${watchChannel}, but could not be timed out. Please review manually.`)
         .addFields(
-            { name: 'User', value: memberDisplay(member), inline: false },
+            //{ name: 'User', value: memberDisplay(member), inline: false },
             { name: 'Error', value: getErrorMessage(error), inline: false },
         )
         .setTimestamp();

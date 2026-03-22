@@ -77,7 +77,7 @@ async function handleMessage(interaction: ChatInputCommandInteraction) {
 
     const titleInput = new TextInputBuilder()
         .setCustomId('title')
-        .setPlaceholder('⚠️ DO NOT SEND MESSAGES IN THIS CHANNEL!')
+        .setValue('⚠️ DO NOT SEND MESSAGES IN THIS CHANNEL!')
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setMaxLength(256);
@@ -87,7 +87,7 @@ async function handleMessage(interaction: ChatInputCommandInteraction) {
 
     const descriptionInput = new TextInputBuilder()
         .setCustomId('description')
-        .setPlaceholder('This channel is used to catch spam bots. Any messages sent here will a {action} from the server.')
+        .setValue('This channel is used to catch spam bots.\nAny messages sent here will result in a {action} from the server.\nYou have been warned.')
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(true)
         .setMaxLength(2048);
@@ -106,7 +106,29 @@ async function handleMessage(interaction: ChatInputCommandInteraction) {
         .setLabel('Icon URL (optional)')
         .setTextInputComponent(iconInput);
 
-    modal.setLabelComponents(titleLabel, descriptionLabel, iconLabel);
+    const webhookNameInput = new TextInputBuilder()
+        .setCustomId('webhook_name')
+        .setPlaceholder('Honeypot')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setMaxLength(80);
+    const webhookNameLabel = new LabelBuilder()
+        .setLabel('Sender Name (optional)')
+        .setDescription('Custom name shown as the message sender')
+        .setTextInputComponent(webhookNameInput);
+
+    const webhookAvatarInput = new TextInputBuilder()
+        .setCustomId('webhook_avatar_url')
+        .setPlaceholder('https://...')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setMaxLength(512);
+    const webhookAvatarLabel = new LabelBuilder()
+        .setLabel('Sender Avatar URL (optional)')
+        .setDescription('Custom avatar shown as the message sender')
+        .setTextInputComponent(webhookAvatarInput);
+
+    modal.setLabelComponents(titleLabel, descriptionLabel, iconLabel, webhookNameLabel, webhookAvatarLabel);
 
     await interaction.showModal(modal);
 }
@@ -124,6 +146,8 @@ async function handleEmbedModalSubmit(interaction: ModalSubmitInteraction) {
     const title = interaction.fields.getTextInputValue('title').trim();
     const description = interaction.fields.getTextInputValue('description').trim();
     const iconUrl = interaction.fields.getTextInputValue('icon_url').trim() || null;
+    const webhookName = interaction.fields.getTextInputValue('webhook_name').trim() || null;
+    const webhookAvatarUrl = interaction.fields.getTextInputValue('webhook_avatar_url').trim() || null;
 
     // Resolve placeholders
     const action = HONEYPOT_CONFIG.softban ? 'softban' : 'ban';
@@ -133,8 +157,8 @@ async function handleEmbedModalSubmit(interaction: ModalSubmitInteraction) {
     const resolvedDescription = description.replaceAll('{action}', action).replaceAll('{channel}', channelMention);
 
     const embed = new EmbedBuilder()
-        .setTitle(resolvedTitle)
-        .setDescription(resolvedDescription)
+        //.setTitle(resolvedTitle)
+        .setDescription(`# ${resolvedTitle}\n${resolvedDescription}`)
         .setColor(0xED4245)
 
     if (iconUrl) {
@@ -143,11 +167,21 @@ async function handleEmbedModalSubmit(interaction: ModalSubmitInteraction) {
 
     try {
         const channel = await interaction.client.channels.fetch(HONEYPOT_CONFIG.watchChannel) as TextChannel;
-        await channel.send({ embeds: [embed] });
+
+        // Reuse existing webhook if one exists, otherwise create a new one
+        const wbehooks = await channel.fetchWebhooks();
+        const existing = wbehooks.find(wh => wh.name === 'Honeypot');
+        const webhook = existing ?? await channel.createWebhook({ name: 'Honeypot' });
+
+        await webhook.send({
+            embeds: [embed],
+            ...(webhookName && { username: webhookName }),
+            ...(webhookAvatarUrl && { avatarURL: webhookAvatarUrl })
+        });
     } catch (error) {
         console.error('[Honeypot] Failed to post warning message:', error);
         await interaction.editReply({
-            content: '❌ Failed to post the message to the watch channel. Check my permissions and the channel configuration.'
+            content: `❌ Failed to post the message to the watch channel. Check that I have \`Manage Webhooks\` permission for ${channelMention}.`
         });
         return;
     }
