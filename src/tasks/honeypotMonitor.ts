@@ -1,6 +1,7 @@
 import {Events, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import type { Client, GuildMember, TextChannel } from "discord.js";
 import { HONEYPOT_CONFIG } from "../config.js";
+import { logError } from "../utils/helpers.js";
 import { parseDuration } from "../utils/timeParser.js";
 import {
     createBanSuccessEmbed,
@@ -87,7 +88,7 @@ async function handleBan(client: Client, member: GuildMember, message: string): 
             embeds: [createBanSuccessEmbed(member, softban, watchChannel, message)]
         });
     } catch (error) {
-        console.error(`[Honeypot] Failed to ${softban ? 'Softbanned' : 'Banned'} ${member.user.tag}:`, error);
+        logError(`[Honeypot] Failed to ${softban ? 'Softbanned' : 'Banned'} ${member.user.tag}:`, error);
 
         await sendAlert(client, {
             embeds: [createBanFailedEmbed(member, softban, watchChannel, error, message)]
@@ -120,7 +121,7 @@ async function handleTimeout(client: Client, member: GuildMember, message: strin
             components: [buildAdminActionRow(member.id)]
         });
     } catch (error) {
-        console.error(`[Honeypot] Failed to timeout ${member.user.tag}:`, error);
+        logError(`[Honeypot] Failed to timeout ${member.user.tag}:`, error);
 
         await sendAlert(client, {
             embeds: [createTimeoutFailedEmbed(member, watchChannel, error, message)]

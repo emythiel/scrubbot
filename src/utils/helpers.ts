@@ -1,3 +1,18 @@
+import { DiscordAPIError } from "discord.js";
+
+
+/**
+ * Log errors to the console
+ * If a discord API error, log a simplified message. Else log a more in-depth error.
+ */
+export function logError(prefix: string, error: unknown): void {
+    if (error instanceof DiscordAPIError) {
+        console.error(`${prefix}: [${error.code}] ${error.message}`);
+    } else {
+        console.error(prefix, error);
+    }
+}
+
 /**
  * Validate a Guild Wars 2 Account Name
  * Format: Name.#### where #### is exactly 4 digits
