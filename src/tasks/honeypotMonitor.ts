@@ -60,7 +60,7 @@ async function sendAlert(client: Client, content: Parameters<TextChannel['send']
 /**
  * Handle user bans
  */
-async function handleBan(client: Client, member: GuildMember): Promise<void> {
+async function handleBan(client: Client, member: GuildMember, message: string): Promise<void> {
     const { softban, deleteMessageHours } = HONEYPOT_CONFIG;
     const deleteMessageSeconds = deleteMessageHours * 3600;
     const watchChannel = `<#${HONEYPOT_CONFIG.watchChannel}>`;
@@ -75,13 +75,13 @@ async function handleBan(client: Client, member: GuildMember): Promise<void> {
         console.log(`[Honeypot] ${softban ? 'Softbanned' : 'Banned'} ${member.user.tag} (${member.id})`);
 
         await sendAlert(client, {
-            embeds: [createBanSuccessEmbed(member, softban, watchChannel)]
+            embeds: [createBanSuccessEmbed(member, softban, watchChannel, message)]
         });
     } catch (error) {
         console.error(`[Honeypot] Failed to ${softban ? 'Softbanned' : 'Banned'} ${member.user.tag}:`, error);
 
         await sendAlert(client, {
-            embeds: [createBanFailedEmbed(member, softban, watchChannel, error)]
+            embeds: [createBanFailedEmbed(member, softban, watchChannel, error, message)]
         });
     }
 }
@@ -89,7 +89,7 @@ async function handleBan(client: Client, member: GuildMember): Promise<void> {
 /**
  * Handle user timeouts
  */
-async function handleTimeout(client: Client, member: GuildMember): Promise<void> {
+async function handleTimeout(client: Client, member: GuildMember, message: string): Promise<void> {
     const durationSeconds = parseDuration(HONEYPOT_CONFIG.timeoutDuration);
     const watchChannel = `<#${HONEYPOT_CONFIG.watchChannel}>`;
 
@@ -107,14 +107,14 @@ async function handleTimeout(client: Client, member: GuildMember): Promise<void>
         console.log(`[Honeypot] Timed out ${member.user.tag} (${member.id}) for ${HONEYPOT_CONFIG.timeoutDuration}`);
 
         await sendAlert(client, {
-            embeds: [createTimeoutSuccessEmbed(member, HONEYPOT_CONFIG.timeoutDuration, watchChannel)],
+            embeds: [createTimeoutSuccessEmbed(member, HONEYPOT_CONFIG.timeoutDuration, watchChannel, message)],
             components: [buildAdminActionRow(member.id)]
         });
     } catch (error) {
         console.error(`[Honeypot] Failed to timeout ${member.user.tag}:`, error);
 
         await sendAlert(client, {
-            embeds: [createTimeoutFailedEmbed(member, watchChannel, error)]
+            embeds: [createTimeoutFailedEmbed(member, watchChannel, error, message)]
         });
     }
 }
@@ -142,17 +142,19 @@ export function startHoneypotMonitor(client: Client): void {
         const member = message.member;
         if (!member) return;
 
+        // Delete the message
+        try {
+            await message.delete();
+        } catch (error) {
+            console.error('[Honeypot] Failed to delete message:', error);
+        }
+
         const hasTimeoutRole = !!HONEYPOT_CONFIG.timeoutRole && member.roles.cache.has(HONEYPOT_CONFIG.timeoutRole);
 
         if (hasTimeoutRole) {
-            try {
-                await message.delete();
-            } catch (error) {
-                console.error('[Honeypot] Failed to delete message:', error);
-            }
-            await handleTimeout(client, member);
+            await handleTimeout(client, member, message.content);
         } else {
-            await handleBan(client, member);
+            await handleBan(client, member, message.content);
         }
     });
 }
