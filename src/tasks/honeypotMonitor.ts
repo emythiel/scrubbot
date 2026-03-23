@@ -35,7 +35,7 @@ function buildAdminActionRow(userId: string): ActionRowBuilder<ButtonBuilder> {
 
 
 // ---------------------------------------------------------------------------
-// Alert helper
+// Helpers
 // ---------------------------------------------------------------------------
 
 /**
@@ -50,6 +50,15 @@ async function sendAlert(client: Client, content: Parameters<TextChannel['send']
     } catch (error) {
         console.error('[Honeypot] Failed to send alert:', error);
     }
+}
+
+/**
+ * Truncate a message, cutting off anything past 1000 characters
+ * and adding '...' to the end
+ */
+function truncateMessage(content: string, maxLength = 1000): string {
+    if (content.length <= maxLength) return content;
+    return content.slice(0, maxLength) + '...';
 }
 
 
@@ -149,12 +158,14 @@ export function startHoneypotMonitor(client: Client): void {
             console.error('[Honeypot] Failed to delete message:', error);
         }
 
+        const msg = truncateMessage(message.content.replaceAll('`', ''));
+
         const hasTimeoutRole = !!HONEYPOT_CONFIG.timeoutRole && member.roles.cache.has(HONEYPOT_CONFIG.timeoutRole);
 
         if (hasTimeoutRole) {
-            await handleTimeout(client, member, message.content);
+            await handleTimeout(client, member, msg);
         } else {
-            await handleBan(client, member, message.content);
+            await handleBan(client, member, msg);
         }
     });
 }
