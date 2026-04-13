@@ -87,6 +87,15 @@ export const GIVEAWAY_CONFIG = {
 
     /** Cron schedule for checking expired giveaways */
     get schedule() { return getConfig().giveaway.schedule; },
+
+    /** Forum channel to post giveaways to, if description is filled */
+    get forumChannel() { return getConfig().giveaway.forum_channel; },
+
+    /** Active giveaway tag for forum posts */
+    get tagActive() { return getConfig().giveaway.active_tag; },
+
+    /** Ended giveaway tag for forum posts */
+    get tagEnded() { return getConfig().giveaway.ended_tag },
 };
 
 /**

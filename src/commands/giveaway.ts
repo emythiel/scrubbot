@@ -15,7 +15,8 @@ import type {
     ChatInputCommandInteraction,
     ModalSubmitInteraction,
     ButtonInteraction,
-    TextChannel
+    TextChannel,
+    ForumChannel
 } from 'discord.js';
 import type { GiveawayWinner } from '../types/giveaway.js';
 import { parseDuration, getUnixTimestamp } from '../utils/timeParser.js';
@@ -23,7 +24,7 @@ import { createCancelledGiveawayEmbed, createEndedGiveawayEmbed, createGiveawayE
 import { validateGW2Id } from '../utils/helpers.js';
 import { GIVEAWAY_CONFIG as CONF } from '../config.js';
 import * as db from '../database/giveaways.js';
-import { buildClaimButton, endGiveaway, selectRandomWinners } from '../utils/giveawayActions.js';
+import { buildClaimButton, trySendAnnouncement, endGiveaway, selectRandomWinners } from '../utils/giveawayActions.js';
 
 
 // ---------------------------------------------------------------------------
@@ -112,17 +113,6 @@ async function handleCreate(interaction: ChatInputCommandInteraction) {
         .setDescription('What to give away')
         .setTextInputComponent(prizeInput);
 
-    // Description
-    const descriptionInput = new TextInputBuilder()
-        .setCustomId('description')
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(false)
-        .setMaxLength(1024);
-    const descriptionLabel = new LabelBuilder()
-        .setLabel('Description (Optional)')
-        .setDescription('Any additional details or extra text')
-        .setTextInputComponent(descriptionInput);
-
     // Duration
     const durationInput = new TextInputBuilder()
         .setCustomId('duration')
@@ -157,12 +147,25 @@ async function handleCreate(interaction: ChatInputCommandInteraction) {
         .setDescription('Message for the Announcement channel')
         .setTextInputComponent(announcementInput);
 
+    // Description - doubles as forum post trigger
+    // empty = post in current channel, filled = create forum post
+    const descriptionInput = new TextInputBuilder()
+        .setCustomId('description')
+        .setPlaceholder('Leave blank to post in giveaway in current channel. Fill to create a forum post.')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false)
+        .setMaxLength(2000);
+    const descriptionLabel = new LabelBuilder()
+        .setLabel('Forum Post Content (optional)')
+        .setDescription('Fill this to post in the giveaway forum channel instead of here')
+        .setTextInputComponent(descriptionInput);
+
     modal.setLabelComponents(
         prizeLabel,
-        descriptionLabel,
         durationLabel,
         winnerCountLabel,
-        announcementLabel
+        announcementLabel,
+        descriptionLabel
     );
 
     await interaction.showModal(modal);
@@ -172,20 +175,20 @@ async function handleCreate(interaction: ChatInputCommandInteraction) {
  * Handle modal submission for giveaway creation
  */
 async function handleCreateModalSubmit(interaction: ModalSubmitInteraction) {
-    if (interaction.customId !== 'giveaway_create_modal') return;
+    //if (interaction.customId !== 'giveaway_create_modal') return;
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // Get input values
-    const prize = interaction.fields.getTextInputValue('prize');
-    const description = interaction.fields.getTextInputValue('description') || null;
-    const durationStr = interaction.fields.getTextInputValue('duration');
-    const winnerCountStr = interaction.fields.getTextInputValue('winner_count');
+    const prize            = interaction.fields.getTextInputValue('prize');
+    const durationStr      = interaction.fields.getTextInputValue('duration');
+    const winnerCountStr   = interaction.fields.getTextInputValue('winner_count');
     const announcementText = interaction.fields.getTextInputValue('announcement') || null;
+    const description      = interaction.fields.getTextInputValue('description') || null;
 
     // Parse and validate duration
-    const duration = parseDuration(durationStr);
-    if (!duration) {
+    const durationSeconds = parseDuration(durationStr);
+    if (!durationSeconds) {
         await interaction.editReply({
             content: `❌ Invalid duration format: "${durationStr}"\n\nExamples:\n- Single: "10m", "2 hours", "7 days", "1 week"\n- Combined: "5d 2h", "1w 3d 5h 30m"`
         });
@@ -201,78 +204,168 @@ async function handleCreateModalSubmit(interaction: ModalSubmitInteraction) {
         return;
     }
 
-    const channelId = interaction.channelId!;
-    const now = getUnixTimestamp();
-    const endsAt = now + duration;
+    const now    = getUnixTimestamp();
+    const endsAt = now + durationSeconds;
+    const host   = interaction.user;
 
-    try {
-        // Build and post embed before writing to database, as we need message ID for the primary key
-        const embed = createGiveawayEmbed(
-            {
-                message_id:     '',  // Not known yet
+    const channelId = interaction.channelId!;
+
+    if (description) {
+        // Forum post path
+        if (!CONF.forumChannel) {
+            await interaction.editReply({
+                content: '❌ A forum post description was provided, but no forum channel is configured in `config.toml`.'
+            });
+            return;
+        }
+
+        let forumChannel: ForumChannel;
+        try {
+            const ch = await interaction.client.channels.fetch(CONF.forumChannel);
+            if (!ch || ch.type !== ChannelType.GuildForum) {
+                await interaction.editReply({
+                    content: '❌ The configured `forum_channel` is not a Forum channel. Check the ID in `config.toml`.'
+                });
+                return;
+            }
+            forumChannel = ch as ForumChannel;
+        } catch (error) {
+            console.error('[Giveaway] Failed to fetch forum channel:', error);
+            await interaction.editReply({
+                content: '❌ Could not fetch the forum channel. Check the configured ID in `config.toml`.'
+            });
+            return;
+        }
+
+        // Apply active tag if configured
+        const appliedTags: string[] = [];
+        if (CONF.tagActive) appliedTags.push(CONF.tagActive);
+
+        // Create thread. Starter message is the description (forum post content).
+        let thread;
+        try {
+            thread = await forumChannel.threads.create({
+                name: prize,
+                message: { content: description },
+                ...(appliedTags.length > 0 && { appliedTags }),
+            });
+        } catch (error) {
+            console.error('[Giveaway] Failed to create forum thread:', error);
+            await interaction.editReply({
+                content: '❌ Failed to create the forum post. Make sure I have the `Create Posts` permission in that channel.'
+            });
+            return;
+        }
+
+        // Post the giveaway embed as a new message inside the thread
+        let giveawayMessage;
+        try {
+            const embed = createGiveawayEmbed({
+                message_id:   '',
+                channel_id:   thread.id,
+                prize,
+                description:  null,
+                hosted_by:    host.id,
+                created_at:   now,
+                ends_at:      endsAt,
+                ended:        false,
+                winner_count: winnerCount,
+                entries:      [],
+                winners:      []
+            }, host, 0);
+
+            const enterButton = new ButtonBuilder()
+                .setCustomId('giveaway_enter')
+                .setLabel('Enter/Leave Giveaway')
+                .setEmoji('🎉')
+                .setStyle(ButtonStyle.Primary);
+
+            giveawayMessage = await thread.send({
+                embeds: [embed],
+                components: [new ActionRowBuilder<ButtonBuilder>().addComponents(enterButton)]
+            });
+
+            db.createGiveaway({
+                message_id: giveawayMessage.id,
+                channel_id: thread.id,
+                prize,
+                description: null,
+                hosted_by: host.id,
+                created_at: now,
+                ends_at: endsAt,
+                winner_count: winnerCount
+            });
+        } catch (error) {
+            console.error('[Giveaway] Failed to post giveaway message in thread:', error);
+            await interaction.editReply({
+                content: '❌ Forum post was created but the giveaway message could not be posted inside it.'
+            });
+            return;
+        }
+
+        await trySendAnnouncement(interaction.client, announcementText, giveawayMessage.url);
+
+        await interaction.editReply({
+            content: `✅ Forum giveaway created! [Jump to giveaway](${giveawayMessage.url})`
+        })
+    } else {
+        try {
+            // Build and post embed before writing to database, as we need message ID for the primary key
+            const embed = createGiveawayEmbed(
+                {
+                    message_id:     '',  // Not known yet
+                    channel_id:     channelId,
+                    prize,
+                    description,
+                    hosted_by:      interaction.user.id,
+                    created_at:     now,
+                    ends_at:        endsAt,
+                    ended:          false,
+                    winner_count:   winnerCount,
+                    entries:        [],
+                    winners:        []
+                },
+                interaction.user,
+                0
+            );
+
+            // Create enter button
+            const enterButton = new ButtonBuilder()
+                .setCustomId('giveaway_enter')
+                .setLabel('Enter/Leave Giveaway')
+                .setEmoji('🎉')
+                .setStyle(ButtonStyle.Primary);
+
+            // Send the giveaway message
+            const channel = interaction.channel as TextChannel;
+            const giveawayMessage = await channel.send({
+                embeds: [embed],
+                components: [new ActionRowBuilder<ButtonBuilder>().addComponents(enterButton)]
+            });
+
+            // Save to database
+            db.createGiveaway({
+                message_id:     giveawayMessage.id,
                 channel_id:     channelId,
                 prize,
                 description,
                 hosted_by:      interaction.user.id,
                 created_at:     now,
                 ends_at:        endsAt,
-                ended:          false,
-                winner_count:   winnerCount,
-                entries:        [],
-                winners:        []
-            },
-            interaction.user,
-            0
-        );
+                winner_count:   winnerCount
+            });
 
-        // Create enter button
-        const enterButton = new ButtonBuilder()
-            .setCustomId('giveaway_enter')
-            .setLabel('Enter/Leave Giveaway')
-            .setEmoji('🎉')
-            .setStyle(ButtonStyle.Primary);
+            await trySendAnnouncement(interaction.client, announcementText, giveawayMessage.url);
 
-        // Send the giveaway message
-        const channel = interaction.channel as TextChannel;
-        const giveawayMessage = await channel.send({
-            embeds: [embed],
-            components: [new ActionRowBuilder<ButtonBuilder>().addComponents(enterButton)]
-        });
-
-        // Save to database
-        db.createGiveaway({
-            message_id:     giveawayMessage.id,
-            channel_id:     channelId,
-            prize,
-            description,
-            hosted_by:      interaction.user.id,
-            created_at:     now,
-            ends_at:        endsAt,
-            winner_count:   winnerCount
-        });
-
-        // Send announcement if provided
-        if (announcementText && CONF.announcementChannel) {
-            try {
-                const announcementChannel = await interaction.client.channels.fetch(CONF.announcementChannel);
-                if (announcementChannel?.isTextBased() && !announcementChannel.isDMBased()) {
-                    await announcementChannel.send({
-                        content: `<@&${CONF.pingRole}>\n\n${announcementText}\n\nJump to giveaway:\n${giveawayMessage.url}`
-                    });
-                }
-            } catch (error) {
-                console.error('Error sending announcement:', error);
-            }
+            await interaction.editReply({
+                content: `✅ Giveaway created successfully! [Jump to giveaway](${giveawayMessage.url})`
+            });
+        } catch (error) {
+            console.error('Error creating giveaway:', error);
+            await interaction.editReply({
+                content: '❌ Failed to create giveaway. Please try again.'
+            });
         }
-
-        await interaction.editReply({
-            content: `✅ Giveaway created successfully! [Jump to giveaway](${giveawayMessage.url})`
-        });
-    } catch (error) {
-        console.error('Error creating giveaway:', error);
-        await interaction.editReply({
-            content: '❌ Failed to create giveaway. Please try again.'
-        });
     }
 }
 
@@ -444,7 +537,9 @@ async function handleClaimModalSubmit(interaction: ModalSubmitInteraction) {
 
     // Update giveaway embed to show claim status
     try {
-        const channel = await interaction.client.channels.fetch(giveaway.channel_id) as TextChannel;
+        const channel = await interaction.client.channels.fetch(giveaway.channel_id);
+        if (!channel || !channel.isTextBased() || channel.isDMBased()) return;
+
         const message = await channel.messages.fetch(messageId);
         const host = await interaction.client.users.fetch(giveaway.hosted_by);
         const updatedWinners = db.getWinners(messageId);
@@ -457,6 +552,18 @@ async function handleClaimModalSubmit(interaction: ModalSubmitInteraction) {
         );
 
         await message.edit({ embeds: [updatedEmbed] });
+
+        // If all winners have claimed, and this is a forum thread, lock and archive
+        const allClaimed = updatedWinners.every(w => w.claimed);
+        if (allClaimed && channel.isThread()) {
+            try {
+                await channel.setLocked(true, 'All prizes claimed');
+                await channel.setArchived(true, 'All prizes claimed');
+                console.log(`[Giveaway] Forum thread ${channel.id} locked and archived - all prizes claimed`);
+            } catch (error) {
+                console.error('[Giveaway] Failed to lock/archive forum thread:', error);
+            }
+        }
     } catch (error) {
         console.error('Error updating giveaway embed:', error);
     }

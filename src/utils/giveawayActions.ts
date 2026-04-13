@@ -3,6 +3,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import type { GiveawayWinner } from '../types/giveaway.js';
 import * as db from '../database/giveaways.js';
 import { createEndedGiveawayEmbed } from './embeds/giveaway.js';
+import { GIVEAWAY_CONFIG as CONF, GIVEAWAY_CONFIG } from '../config.js';
 
 
 // ---------------------------------------------------------------------------
@@ -19,6 +20,24 @@ export function buildClaimButton(messageId: string): ButtonBuilder {
         .setStyle(ButtonStyle.Success);
 }
 
+
+// ---------------------------------------------------------------------------
+// Announcement post helper
+// ---------------------------------------------------------------------------
+
+export async function trySendAnnouncement(client: Client, text: string | null, giveawayUrl: string): Promise<void> {
+    if (!text || !CONF.announcementChannel) return;
+
+    try {
+        const ch = await client.channels.fetch(CONF.announcementChannel);
+        if (!ch?.isTextBased() || ch.isDMBased()) return;
+
+        const ping = CONF.pingRole ? `<@&${CONF.pingRole}>\n\n` : '';
+        await ch.send({ content: `${ping}${text}\n\nJump to giveaway:\n${giveawayUrl}` });
+    } catch (error) {
+        console.error('[Giveaway] Failed to send announcement:', error);
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Core end giveaway logic
@@ -44,7 +63,10 @@ export function selectRandomWinners(entries: string[], count: number): string[] 
 
 /**
  * Select winners, update original Discord message,
- * and post winner announcement with a claim button
+ * and post winner announcement with a claim button.
+ *
+ * For forum giveaways, channel_id is the thread ID.
+ * IF a thread is detected, active tag is removed and ended tag added.
  *
  * @param client         - Discord client instance
  * @param messageId      - Giveaway message ID
@@ -72,7 +94,9 @@ export async function endGiveaway(
     const finalGiveaway = db.getGiveaway(messageId)!;
 
     try {
-        const channel = await client.channels.fetch(giveaway.channel_id) as TextChannel;
+        const channel = await client.channels.fetch(giveaway.channel_id);
+        if (!channel || !channel.isTextBased() || channel.isDMBased()) return;
+
         const message = await channel.messages.fetch(messageId);
         const host = await client.users.fetch(giveaway.hosted_by);
 
@@ -93,6 +117,18 @@ export async function endGiveaway(
             await channel.send({
                 content: `🎉 **Giveaway Ended!**\n\nNo valid entries were received.\n**Prize**: ${giveaway.prize}`
             });
+        }
+
+        // If forum thread, swap active to ended tag
+        if (channel.isThread()) {
+            const activeTag = GIVEAWAY_CONFIG.tagActive || null;
+            const endedTag  = GIVEAWAY_CONFIG.tagEnded  || null;
+
+            const updatedTags = channel.appliedTags.filter(t => t !== activeTag);
+            if (endedTag) updatedTags.push(endedTag);
+
+            await channel.setAppliedTags(updatedTags, 'Giveaway ended');
+            console.log(`[Giveaway] Updated forum thread tags for giveaway ${messageId}`);
         }
     } catch (error) {
         console.error(`[Giveaway] Error ending giveaway ${messageId}`, error);

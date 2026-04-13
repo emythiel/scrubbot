@@ -36,6 +36,12 @@ export interface BotConfig {
         ping_role: string;
         /** Cron schedule for when to check for expired giveaways */
         schedule: string;
+        /** Forum to post giveaways to, if description is filled */
+        forum_channel: string;
+        /** Forum post tag for active giveaways */
+        active_tag: string;
+        /** Forum post tag for ended giveaways */
+        ended_tag: string;
     };
 
     /**
@@ -102,6 +108,9 @@ const DEFAULTS: BotConfig = {
         announcement_channel: '',
         ping_role: '',
         schedule: '*/1 * * * *',  // Every minute
+        forum_channel: '',
+        active_tag: '',
+        ended_tag: ''
     },
     foodcheck: {
         channel: '',
